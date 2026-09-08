@@ -1,0 +1,13 @@
+{
+  "itemGroup.sablefinder": "Example Mod Tab",
+  "block.sablefinder.example_block": "Example Block",
+  "item.sablefinder.example_item": "Example Item",
+
+  "sablefinder.configuration.title": "sableFinder Configs",
+  "sablefinder.configuration.section.sablefinder.common.toml": "sableFinder Configs",
+  "sablefinder.configuration.section.sablefinder.common.toml.title": "sableFinder Configs",
+  "sablefinder.configuration.items": "Item List",
+  "sablefinder.configuration.logDirtBlock": "Log Dirt Block",
+  "sablefinder.configuration.magicNumberIntroduction": "Magic Number Text",
+  "sablefinder.configuration.magicNumber": "Magic Number"
+}
