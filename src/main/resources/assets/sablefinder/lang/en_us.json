@@ -9,5 +9,6 @@
   "sablefinder.configuration.items": "Item List",
   "sablefinder.configuration.logDirtBlock": "Log Dirt Block",
   "sablefinder.configuration.magicNumberIntroduction": "Magic Number Text",
-  "sablefinder.configuration.magicNumber": "Magic Number"
+  "sablefinder.configuration.magicNumber": "Magic Number",
+  "gui.sablefinder": "SableFinder"
 }
