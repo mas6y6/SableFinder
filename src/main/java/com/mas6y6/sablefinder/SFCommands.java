@@ -4,29 +4,52 @@ import com.mas6y6.sablefinder.networking.CheckExistencePacket;
 import com.mas6y6.sablefinder.networking.OpenGUIPacket;
 import com.mas6y6.sablefinder.sable.SableUtils;
 import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.neoforge.network.PacketDistributor;
 
 import java.util.Objects;
+import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+
+import static net.minecraft.commands.Commands.argument;
 
 public class SFCommands {
     private static final long RESPONSE_TIMEOUT_SECONDS = 5;
 
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
-        dispatcher.register(Commands.literal("sablefinder").executes(SFCommands::execute));
+        dispatcher.register(
+                Commands.literal("sablefinder")
+                        .then(
+                                Commands.literal("view_uuid")
+                                        .then(
+                                                argument("uuid", StringArgumentType.string())
+                                                        .suggests((context,builder) -> {
+                                                            SableUtils.getAllContraptions(context.getSource().getServer(),false)
+                                                                    .forEach(contraptionData -> builder.suggest(contraptionData.uuid().toString()));
+
+                                                            return builder.buildFuture();
+                                                        })
+                                                        .executes(SFCommands::executeVIEWUUID)
+                                        )
+                        )
+                        .then(
+                                Commands.literal("view_name")
+                        )
+                        .then(Commands.literal("open").executes(SFCommands::executeOPENGUI))
+        );
     }
 
-    private static int execute(CommandContext<CommandSourceStack> context) {
+    private static int executeVIEWUUID(CommandContext<CommandSourceStack> context) {
         if (!context.getSource().isPlayer()) {
             context.getSource().sendFailure(Component.literal("You must be a player to use this command."));
             return 0;
@@ -44,21 +67,51 @@ public class SFCommands {
                             }
 
                             try {
-                                CompoundTag tag = new CompoundTag();
-                                var list = new ListTag();
+                                UUID.fromString(context.getArgument("uuid", String.class));
+                            } catch (Exception e) {
+                                context.getSource().sendFailure(Component.literal("Must be a valid UUID"));
+                            } finally {
+                                try {
+                                    CompoundTag tag = SableUtils.buildContraptionsTag(Objects.requireNonNull(entity.getServer()));
+                                    PacketDistributor.sendToPlayer(player, new OpenGUIPacket(tag, Optional.of(UUID.fromString(context.getArgument("uuid", String.class)))));
+                                } catch (Exception e) {
+                                    SableFinder.LOGGER.error("An error occurred while loading contraptions", e);
+                                    context.getSource().sendFailure(Component.literal("An error occurred while loading contraptions: " + e.getMessage()));
+                                }
+                            }
+                        }, server::execute);
+            } else {
+                context.getSource().sendFailure(Component.literal("This command can only be executed by a player."));
+                return 0;
+            }
+        } catch (Exception e) {
+            context.getSource().sendFailure(Component.literal("An error occurred while executing the SableFinder command: " + e.getMessage()));
+            SableFinder.LOGGER.error("An error occurred while executing the SableFinder command", e);
+        }
 
-                                SableUtils.getAllContraptions(Objects.requireNonNull(entity.getServer())).stream().forEach(contraption -> {
-                                    var contraptionTag = new CompoundTag();
+        return 0;
+    }
 
-                                    contraptionTag.putUUID("uuid", contraption.uuid());
-                                    contraptionTag.putString("name", contraption.displayName() != null ? contraption.displayName() : "");
+    private static int executeOPENGUI(CommandContext<CommandSourceStack> context) {
+        if (!context.getSource().isPlayer()) {
+            context.getSource().sendFailure(Component.literal("You must be a player to use this command."));
+            return 0;
+        }
 
-                                    list.add(contraptionTag);
-                                });
+        try {
+            var entity = context.getSource().getEntityOrException();
+            if (entity instanceof ServerPlayer player) {
+                MinecraftServer server = context.getSource().getServer();
+                CompletableFuture.supplyAsync(() -> awaitClientResponse(player))
+                        .thenAcceptAsync(clientHasMod -> {
+                            if (!clientHasMod) {
+                                context.getSource().sendFailure(Component.literal("The client does not have the SableFinder mod installed."));
+                                return;
+                            }
 
-                                tag.put("sableContraptionsUUID", list);
-
-                                PacketDistributor.sendToPlayer(player, new OpenGUIPacket(tag));
+                            try {
+                                CompoundTag tag = SableUtils.buildContraptionsTag(Objects.requireNonNull(entity.getServer()));
+                                PacketDistributor.sendToPlayer(player, new OpenGUIPacket(tag, Optional.empty()));
                             } catch (Exception e) {
                                 SableFinder.LOGGER.error("An error occurred while loading contraptions", e);
                                 context.getSource().sendFailure(Component.literal("An error occurred while loading contraptions: " + e.getMessage()));

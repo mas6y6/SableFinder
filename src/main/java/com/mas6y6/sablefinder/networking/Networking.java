@@ -31,5 +31,17 @@ public class Networking {
                 SableContraptionRequestPacket.STREAM_CODEC,
                 SableContraptionRequestPacket::handleServer
         );
+
+        payloadregister.playToClient(
+                GetSableContraptionListPacket.TYPE,
+                GetSableContraptionListPacket.STREAM_CODEC,
+                GetSableContraptionListPacket::handleClient
+        );
+
+        payloadregister.playToServer(
+                SableContraptionListRequestPacket.TYPE,
+                SableContraptionListRequestPacket.STREAM_CODEC,
+                SableContraptionListRequestPacket::handleServer
+        );
     }
 }

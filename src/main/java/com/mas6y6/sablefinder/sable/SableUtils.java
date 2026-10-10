@@ -6,6 +6,8 @@ import dev.ryanhcode.sable.sublevel.storage.holding.SavedSubLevelPointer;
 import dev.ryanhcode.sable.sublevel.storage.holding.SubLevelHoldingChunk;
 import dev.ryanhcode.sable.sublevel.storage.region.SubLevelRegionFile;
 import dev.ryanhcode.sable.sublevel.storage.serialization.SubLevelData;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
@@ -17,10 +19,16 @@ import java.util.UUID;
 
 public class SableUtils {
     public static List<SableContraptionData> getAllContraptions(MinecraftServer server) {
+        return getAllContraptions(server, true);
+    }
+
+    public static List<SableContraptionData> getAllContraptions(MinecraftServer server, boolean saveWorld) {
         final ServerLevel level = server.overworld();
 
-        SableFinder.LOGGER.info("Saving world...");
-        level.getServer().saveEverything(false, true, true);
+        if (saveWorld) {
+            SableFinder.LOGGER.info("Saving world...");
+            level.getServer().saveEverything(false, true, true);
+        }
 
         final ServerSubLevelContainer container = ServerSubLevelContainer.getContainer(level);
         var storage = container.getHoldingChunkMap().getStorage();
@@ -67,6 +75,21 @@ public class SableUtils {
         }
 
         return list;
+    }
+
+    public static CompoundTag buildContraptionsTag(MinecraftServer server) {
+        CompoundTag tag = new CompoundTag();
+        var list = new net.minecraft.nbt.ListTag();
+
+        getAllContraptions(server).forEach(contraption -> {
+            var contraptionTag = new CompoundTag();
+            contraptionTag.putUUID("uuid", contraption.uuid());
+            contraptionTag.putString("name", contraption.displayName() != null ? contraption.displayName() : "");
+            list.add(contraptionTag);
+        });
+
+        tag.put("sableContraptionsUUID", list);
+        return tag;
     }
 
     public static SableContraptionData getContraption(MinecraftServer server, UUID uuid) {
