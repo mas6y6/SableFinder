@@ -8,7 +8,6 @@ import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
-import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
@@ -71,19 +70,24 @@ public class SFCommands {
                                 return;
                             }
 
+                            final Optional<UUID> selectedUuid;
                             try {
-                                UUID.fromString(context.getArgument("uuid", String.class));
+                                selectedUuid = Optional.of(UUID.fromString(context.getArgument("uuid", String.class)));
                             } catch (Exception e) {
                                 context.getSource().sendFailure(Component.literal("Must be a valid UUID"));
-                            } finally {
-                                try {
-                                    CompoundTag tag = SableUtils.buildContraptionsTag(Objects.requireNonNull(entity.getServer()));
-                                    PacketDistributor.sendToPlayer(player, new OpenGUIPacket(tag, Optional.of(UUID.fromString(context.getArgument("uuid", String.class)))));
-                                } catch (Exception e) {
-                                    SableFinder.LOGGER.error("An error occurred while loading contraptions", e);
-                                    context.getSource().sendFailure(Component.literal("An error occurred while loading contraptions: " + e.getMessage()));
-                                }
+                                return;
                             }
+
+                            SableUtils.buildContraptionsTagAsync(Objects.requireNonNull(entity.getServer()))
+                                    .whenComplete((tag, error) -> {
+                                        if (error != null) {
+                                            SableFinder.LOGGER.error("An error occurred while loading contraptions", error);
+                                            server.execute(() -> context.getSource().sendFailure(Component.literal("An error occurred while loading contraptions: " + error.getMessage())));
+                                            return;
+                                        }
+
+                                        server.execute(() -> PacketDistributor.sendToPlayer(player, new OpenGUIPacket(tag, selectedUuid)));
+                                    });
                         }, server::execute);
             } else {
                 context.getSource().sendFailure(Component.literal("This command can only be executed by a player."));
@@ -119,13 +123,16 @@ public class SFCommands {
                                 return;
                             }
 
-                            try {
-                                CompoundTag tag = SableUtils.buildContraptionsTag(Objects.requireNonNull(entity.getServer()));
-                                PacketDistributor.sendToPlayer(player, new OpenGUIPacket(tag, Optional.empty()));
-                            } catch (Exception e) {
-                                SableFinder.LOGGER.error("An error occurred while loading contraptions", e);
-                                context.getSource().sendFailure(Component.literal("An error occurred while loading contraptions: " + e.getMessage()));
-                            }
+                            SableUtils.buildContraptionsTagAsync(Objects.requireNonNull(entity.getServer()))
+                                    .whenComplete((tag, error) -> {
+                                        if (error != null) {
+                                            SableFinder.LOGGER.error("An error occurred while loading contraptions", error);
+                                            server.execute(() -> context.getSource().sendFailure(Component.literal("An error occurred while loading contraptions: " + error.getMessage())));
+                                            return;
+                                        }
+
+                                        server.execute(() -> PacketDistributor.sendToPlayer(player, new OpenGUIPacket(tag, Optional.empty())));
+                                    });
                         }, server::execute);
             } else {
                 context.getSource().sendFailure(Component.literal("This command can only be executed by a player."));

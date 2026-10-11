@@ -1,7 +1,6 @@
 package com.mas6y6.sablefinder.networking;
 
 import com.mas6y6.sablefinder.SableFinder;
-import com.mas6y6.sablefinder.sable.SableContraptionData;
 import com.mas6y6.sablefinder.sable.SableUtils;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.core.UUIDUtil;
@@ -34,10 +33,16 @@ public record SableContraptionRequestPacket(UUID contraptionId) implements Custo
         iPayloadContext.enqueueWork(() -> {
             if (iPayloadContext.player() instanceof ServerPlayer player) {
                 final MinecraftServer server = player.serverLevel().getServer();
-                final SableContraptionData contraption = SableUtils.getContraption(server, packet.contraptionId(), false);
-                if (contraption != null) {
-                    iPayloadContext.reply(new GetSableContraptionPacket(contraption));
-                }
+                SableUtils.getContraptionAsync(server, packet.contraptionId(), false).whenComplete((contraption, error) -> {
+                    if (error != null) {
+                        SableFinder.LOGGER.error("An error occurred while loading contraption {} for player {}", packet.contraptionId(), player.getName().getString(), error);
+                        return;
+                    }
+
+                    if (contraption != null && server.isRunning()) {
+                        server.execute(() -> iPayloadContext.reply(new GetSableContraptionPacket(contraption)));
+                    }
+                });
             }
         });
     }

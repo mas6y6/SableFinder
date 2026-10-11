@@ -26,20 +26,84 @@ import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.stream.Collectors;
 
 public class SableUtils {
+
+    /**
+     * All Sable scans run through a single background thread so they never overlap and never
+     * stall the server tick thread. The thread is a daemon so it can't keep the game alive.
+     */
+    private static final ExecutorService SCAN_EXECUTOR = Executors.newSingleThreadExecutor(runnable -> {
+        final Thread thread = new Thread(runnable, "sablefinder-scan");
+        thread.setDaemon(true);
+        return thread;
+    });
+
     public static List<SableContraptionData> getAllContraptions(MinecraftServer server) {
         return getAllContraptions(server, true);
     }
 
     public static List<SableContraptionData> getAllContraptions(MinecraftServer server, boolean saveWorld) {
-        if (saveWorld) {
-            SableFinder.LOGGER.info("Saving world...");
-            server.saveEverything(false, true, true);
+        saveSubLevels(server, saveWorld);
+        return scanContraptions(buildScanPlan(server));
+    }
+
+    public static CompletableFuture<List<SableContraptionData>> getAllContraptionsAsync(MinecraftServer server) {
+        return getAllContraptionsAsync(server, true);
+    }
+
+    /**
+     * Gathers every stored contraption without blocking the server tick thread.
+     *
+     * <p>The sub-level save still runs synchronously on the calling thread (it must be the server
+     * thread, since it touches live server state), but the expensive region scan/parse is moved to
+     * {@link #SCAN_EXECUTOR}. The returned future completes on that background thread, so callers
+     * must hop back to the server thread before touching server state or sending packets.
+     */
+    public static CompletableFuture<List<SableContraptionData>> getAllContraptionsAsync(MinecraftServer server, boolean saveWorld) {
+        saveSubLevels(server, saveWorld);
+
+        // Snapshot the live container state while we're still on the server thread so the
+        // background scan only has to read storage files.
+        final List<LevelScan> plan = buildScanPlan(server);
+
+        return CompletableFuture.supplyAsync(() -> scanContraptions(plan), SCAN_EXECUTOR);
+    }
+
+    /**
+     * Persists Sable's sub-levels without flushing every vanilla chunk. This is the sub-level half
+     * of a normal world save (Sable injects the same call into {@code ServerLevel#save}), just much
+     * cheaper. Must run on the server thread.
+     */
+    private static void saveSubLevels(MinecraftServer server, boolean save) {
+        if (!save) {
+            return;
         }
 
-        final List<SableContraptionData> list = new ArrayList<>();
+        SableFinder.LOGGER.info("Saving sub-levels...");
+
+        for (final ServerLevel level : server.getAllLevels()) {
+            final ServerSubLevelContainer container = ServerSubLevelContainer.getContainer(level);
+
+            if (container == null) {
+                continue;
+            }
+
+            container.getHoldingChunkMap().saveAll();
+        }
+    }
+
+    /**
+     * Captures everything the background scan needs. Must be called on the server thread.
+     */
+    private static List<LevelScan> buildScanPlan(MinecraftServer server) {
+        final List<LevelScan> plan = new ArrayList<>();
 
         // Sub-levels are stored per dimension, so every level's container has to be scanned.
         for (final ServerLevel level : server.getAllLevels()) {
@@ -49,11 +113,25 @@ public class SableUtils {
                 continue;
             }
 
-            final SubLevelStorage storage = container.getHoldingChunkMap().getStorage();
-            final List<UUID> loadedUUIDS = container.getAllSubLevels().stream().map(SubLevel::getUniqueId).toList();
+            final Set<UUID> loadedUuids = container.getAllSubLevels().stream()
+                    .map(SubLevel::getUniqueId)
+                    .collect(Collectors.toSet());
 
-            forEachStoredSubLevel(storage, (chunkPos, pointer, data) -> {
-                list.add(SableContraptionData.parse(data, level, loadedUUIDS.contains(data.uuid())));
+            plan.add(new LevelScan(level, container.getHoldingChunkMap().getStorage(), loadedUuids));
+        }
+
+        return plan;
+    }
+
+    /**
+     * Reads and parses every stored sub-level. Safe to run off the server thread.
+     */
+    private static List<SableContraptionData> scanContraptions(List<LevelScan> plan) {
+        final List<SableContraptionData> list = new ArrayList<>();
+
+        for (final LevelScan scan : plan) {
+            forEachStoredSubLevel(scan.storage(), (chunkPos, pointer, data) -> {
+                list.add(SableContraptionData.parse(data, scan.level(), scan.loadedUuids().contains(data.uuid())));
                 return true;
             });
         }
@@ -62,10 +140,18 @@ public class SableUtils {
     }
 
     public static CompoundTag buildContraptionsTag(MinecraftServer server) {
+        return buildContraptionsTag(getAllContraptions(server));
+    }
+
+    public static CompletableFuture<CompoundTag> buildContraptionsTagAsync(MinecraftServer server) {
+        return getAllContraptionsAsync(server).thenApply(SableUtils::buildContraptionsTag);
+    }
+
+    private static CompoundTag buildContraptionsTag(List<SableContraptionData> contraptions) {
         CompoundTag tag = new CompoundTag();
         var list = new net.minecraft.nbt.ListTag();
 
-        getAllContraptions(server).forEach(contraption -> {
+        contraptions.forEach(contraption -> {
             var contraptionTag = new CompoundTag();
             contraptionTag.putUUID("uuid", contraption.uuid());
             contraptionTag.putString("name", contraption.displayName() != null ? contraption.displayName() : "");
@@ -83,6 +169,15 @@ public class SableUtils {
                 .findFirst()
                 .orElse(null);
     }
+
+    public static CompletableFuture<SableContraptionData> getContraptionAsync(MinecraftServer server, UUID uuid, boolean saveServer) {
+        return getAllContraptionsAsync(server, saveServer).thenApply(list -> list.stream()
+                .filter(contraption -> contraption.uuid().equals(uuid))
+                .findFirst()
+                .orElse(null));
+    }
+
+    private record LevelScan(ServerLevel level, SubLevelStorage storage, Set<UUID> loadedUuids) {}
 
     public static boolean deleteContraption(MinecraftServer server, UUID uuid) {
         // Sub-levels live in per-dimension containers, so search every dimension for this UUID.

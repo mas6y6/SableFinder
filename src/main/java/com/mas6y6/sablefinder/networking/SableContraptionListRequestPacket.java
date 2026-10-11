@@ -3,7 +3,6 @@ package com.mas6y6.sablefinder.networking;
 import com.mas6y6.sablefinder.SableFinder;
 import com.mas6y6.sablefinder.sable.SableUtils;
 import io.netty.buffer.ByteBuf;
-import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
@@ -31,8 +30,16 @@ public record SableContraptionListRequestPacket() implements CustomPacketPayload
             if (iPayloadContext.player() instanceof ServerPlayer player) {
                 try {
                     final MinecraftServer server = player.serverLevel().getServer();
-                    final CompoundTag tag = SableUtils.buildContraptionsTag(server);
-                    iPayloadContext.reply(new GetSableContraptionListPacket(tag));
+                    SableUtils.buildContraptionsTagAsync(server).whenComplete((tag, error) -> {
+                        if (error != null) {
+                            SableFinder.LOGGER.error("An error occurred while loading contraption list for player {}", player.getName().getString(), error);
+                            return;
+                        }
+
+                        if (server.isRunning()) {
+                            server.execute(() -> iPayloadContext.reply(new GetSableContraptionListPacket(tag)));
+                        }
+                    });
                 } catch (Exception e) {
                     SableFinder.LOGGER.error("An error occurred while loading contraption list for player {}", player.getName().getString(), e);
                 }

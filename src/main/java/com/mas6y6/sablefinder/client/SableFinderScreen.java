@@ -9,7 +9,6 @@ import io.wispforest.owo.ui.base.BaseOwoScreen;
 import io.wispforest.owo.ui.component.ButtonComponent;
 import io.wispforest.owo.ui.component.Components;
 import io.wispforest.owo.ui.component.LabelComponent;
-import io.wispforest.owo.ui.component.TextBoxComponent;
 import io.wispforest.owo.ui.container.Containers;
 import io.wispforest.owo.ui.container.FlowLayout;
 import io.wispforest.owo.ui.container.ScrollContainer;
@@ -44,7 +43,6 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
 
     private LabelComponent foundCountLabel;
     private LabelComponent indexString;
-    private TextBoxComponent searchBox;
     private String searchQuery = "";
     private FlowLayout contraptionList;
     private FlowLayout top3dContainer;
@@ -70,10 +68,6 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
 
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-        if (searchBox != null && searchBox.isFocused()) {
-            return super.keyPressed(keyCode, scanCode, modifiers);
-        }
-
         switch (keyCode) {
             case GLFW.GLFW_KEY_ESCAPE -> {
                 this.onClose();
@@ -244,14 +238,11 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
         );
         sidebar.gap(3);
 
-        searchBox = Components.textBox(Sizing.expand());
-        searchBox.setHint(Component.literal("§7Search..."));
-        searchBox.setMaxLength(64);
-        searchBox.text(searchQuery);
-        searchBox.onChanged().subscribe(value -> {
-            searchQuery = value;
-            rebuildContraptionList();
-        });
+        ButtonComponent searchButton = Components.button(
+                Component.literal("§7Search..."),
+                button -> Minecraft.getInstance().setScreen(new SearchScreen(this))
+        );
+        searchButton.horizontalSizing(Sizing.expand());
 
         sidebarTop = Containers.horizontalFlow(
                 Sizing.fill(100),
@@ -267,7 +258,7 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
         collapseButton.horizontalSizing(Sizing.fixed(10));
         collapseButton.verticalSizing(Sizing.fill(11));
         sidebarTop.child(collapseButton);
-        sidebarTop.child(searchBox);
+        sidebarTop.child(searchButton);
 
         contraptionList = Containers.verticalFlow(
                 Sizing.fill(100),
@@ -458,7 +449,7 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
         contraptionList.clearChildren();
         listItems.clear();
 
-        List<ContraptionEntry> visible = filteredContraptions();
+        List<ContraptionEntry> visible = contraptions;
 
         if (visible.isEmpty()) {
             FlowLayout emptyItem = Containers.verticalFlow(
@@ -541,20 +532,6 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
 
             contraptionList.child(item);
         }
-    }
-
-    private List<ContraptionEntry> filteredContraptions() {
-        if (searchQuery == null || searchQuery.isBlank()) {
-            return contraptions;
-        }
-
-        String query = searchQuery.toLowerCase(Locale.ROOT);
-
-        return contraptions.stream()
-                .filter(entry -> entry.name().toLowerCase(Locale.ROOT).contains(query)
-                        || entry.uuid().toString().toLowerCase(Locale.ROOT).contains(query)
-                        || (entry.dimension() != null && entry.dimension().toLowerCase(Locale.ROOT).contains(query)))
-                .toList();
     }
 
     private void updateContraptionSelection() {
