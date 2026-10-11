@@ -2,7 +2,9 @@
   "required": true,
   "package": "com.mas6y6.sablefinder.mixin",
   "compatibilityLevel": "JAVA_21",
-  "mixins": [],
+  "mixins": [
+    "NeoOwoNetworkingMixin"
+  ],
   "injectors": {
     "defaultRequire": 1
   },

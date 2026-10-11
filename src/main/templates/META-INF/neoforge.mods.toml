@@ -52,12 +52,10 @@ Server side mod for finding sable contraptions
 # The [[mixins]] block allows you to declare your mixin config to FML so that it gets loaded.
 [[mixins]]
 config="${mod_id}.mixins.json"
+requiredMods=["owo"]
 
 # This mixin config patches owo so its channels become optional. It is only loaded when owo is
 # present (the client), keeping owo out of the dedicated server's requirements.
-[[mixins]]
-config="${mod_id}.owo.mixins.json"
-requiredMods=["owo"]
 
 # The [[accessTransformers]] block allows you to declare where your AT file is.
 # If this block is omitted, a fallback attempt will be made to load an AT from META-INF/accesstransformer.cfg
