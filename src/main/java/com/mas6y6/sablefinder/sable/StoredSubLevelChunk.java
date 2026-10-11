@@ -9,7 +9,7 @@ import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.NbtOps;
 import net.minecraft.nbt.Tag;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.block.Block;
@@ -51,7 +51,7 @@ public class StoredSubLevelChunk {
         this.tag = tag;
     }
 
-    public static StoredSubLevelChunk fromNbt(final ChunkPos pos, final CompoundTag chunkTag, final ServerLevel level, final ResourceKey<Biome> biome) {
+    public static StoredSubLevelChunk fromNbt(final ChunkPos pos, final CompoundTag chunkTag, final Level level, final ResourceKey<Biome> biome) {
         final boolean isLightOn = chunkTag.getBoolean("isLightOn");
         final ListTag blockEntities = chunkTag.getList("block_entities", Tag.TAG_COMPOUND);
         final ListTag blockTicks = chunkTag.getList("block_ticks", Tag.TAG_COMPOUND);
@@ -63,10 +63,15 @@ public class StoredSubLevelChunk {
         );
 
         final CompoundTag sectionsTag = chunkTag.getCompound("sections");
-        final Registry<Biome> biomeRegistry = level.registryAccess().registryOrThrow(Registries.BIOME);
-        final PalettedContainer<Holder<Biome>> biomeContainer = new PalettedContainer<>(
-                biomeRegistry.asHolderIdMap(), biomeRegistry.getHolderOrThrow(biome), PalettedContainer.Strategy.SECTION_BIOMES
-        );
+        final PalettedContainer<Holder<Biome>> biomeContainer;
+        if (level != null) {
+            final Registry<Biome> biomeRegistry = level.registryAccess().registryOrThrow(Registries.BIOME);
+            biomeContainer = new PalettedContainer<>(
+                    biomeRegistry.asHolderIdMap(), biomeRegistry.getHolderOrThrow(biome), PalettedContainer.Strategy.SECTION_BIOMES
+            );
+        } else {
+            biomeContainer = null;
+        }
 
         for (final String sectionKey : sectionsTag.getAllKeys()) {
             final int index = Integer.parseInt(sectionKey);
@@ -81,7 +86,7 @@ public class StoredSubLevelChunk {
                     .parse(NbtOps.INSTANCE, blockStatesTag)
                     .getOrThrow();
 
-            final int sectionY = level.getSectionYFromSectionIndex(index);
+            final int sectionY = level != null ? level.getSectionYFromSectionIndex(index) : index - 4;
             chunk.sections.put(sectionY, new LevelChunkSection(states, biomeContainer));
         }
 

@@ -7,6 +7,8 @@ import io.wispforest.owo.ui.base.BaseOwoScreen;
 import io.wispforest.owo.ui.component.ButtonComponent;
 import io.wispforest.owo.ui.component.Components;
 import io.wispforest.owo.ui.component.LabelComponent;
+import io.wispforest.owo.ui.component.TextBoxComponent;
+import io.wispforest.owo.ui.container.CollapsibleContainer;
 import io.wispforest.owo.ui.container.Containers;
 import io.wispforest.owo.ui.container.FlowLayout;
 import io.wispforest.owo.ui.container.ScrollContainer;
@@ -19,25 +21,70 @@ import net.minecraft.network.chat.Component;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.joml.Vector3d;
+import org.lwjgl.glfw.GLFW;
 
 import java.util.*;
 
 public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
 
+    private static final int COLLAPSED_SIDEBAR_WIDTH = 20;
+    private static final int SCROLLBAR_RIGHT_PADDING = 8;
+
     private CompoundTag sableContraptions;
     private final List<ContraptionEntry> contraptions = new ArrayList<>();
+    private final List<ContraptionItem> listItems = new ArrayList<>();
     private final @Nullable UUID selectedContraptionID;
 
     private LabelComponent foundCountLabel;
+    private TextBoxComponent searchBox;
+    private String searchQuery = "";
     private FlowLayout contraptionList;
+    private FlowLayout top3dContainer;
     private FlowLayout detailsContent;
     private ButtonComponent reloadButton;
+    private boolean leftSidebarCollapsed = false;
+    private boolean rightSidebarCollapsed = false;
     private UUID selectedUuid = null;
+    private int selectedContraptionIndex = 0;
 
-    public SableFinderScreen(@Nullable CompoundTag sableContraptions, Optional<UUID> selectedContraptionID) {
+    public SableFinderScreen(
+            @Nullable CompoundTag sableContraptions,
+            Optional<UUID> selectedContraptionID
+    ) {
         this.sableContraptions = sableContraptions;
         this.selectedContraptionID = selectedContraptionID.orElse(null);
         parseContraptions();
+    }
+
+    @Override
+    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        if (searchBox != null && searchBox.isFocused()) {
+            return super.keyPressed(keyCode, scanCode, modifiers);
+        }
+
+        switch (keyCode) {
+            case GLFW.GLFW_KEY_ESCAPE -> {
+                this.onClose();
+                return true;
+            }
+
+            case GLFW.GLFW_KEY_R -> {
+                reloadContraptions();
+                return true;
+            }
+
+            case GLFW.GLFW_KEY_UP -> {
+                selectContraption(selectedContraptionIndex - 1);
+                return true;
+            }
+
+            case GLFW.GLFW_KEY_DOWN -> {
+                selectContraption(selectedContraptionIndex + 1);
+                return true;
+            }
+        }
+
+        return super.keyPressed(keyCode, scanCode, modifiers);
     }
 
     @Override
@@ -51,15 +98,22 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
 
     private void parseContraptions() {
         contraptions.clear();
+
         if (sableContraptions == null) {
             return;
         }
 
-        if (sableContraptions.contains("sableContraptionsUUID", Tag.TAG_LIST)) {
-            ListTag list = sableContraptions.getList("sableContraptionsUUID", Tag.TAG_COMPOUND);
+        if (sableContraptions.contains(
+                "sableContraptionsUUID", Tag.TAG_LIST
+        )) {
+            ListTag list = sableContraptions.getList(
+                    "sableContraptionsUUID", Tag.TAG_COMPOUND
+            );
+
             for (int i = 0; i < list.size(); i++) {
                 CompoundTag tag = list.getCompound(i);
                 UUID uuid = null;
+
                 if (tag.hasUUID("uuid")) {
                     uuid = tag.getUUID("uuid");
                 } else if (tag.contains("uuid", Tag.TAG_STRING)) {
@@ -71,23 +125,36 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
 
                 if (uuid != null) {
                     String name = tag.getString("name");
+                    boolean nameEmpty = name.isEmpty();
+
                     if (name.isEmpty()) {
-                        name = "Contraption " + uuid.toString().substring(0, 8);
+                        name = uuid.toString().substring(0, 8);
                     }
-                    contraptions.add(new ContraptionEntry(uuid, name));
+
+                    contraptions.add(new ContraptionEntry(uuid, name, nameEmpty));
                 }
             }
-        } else if (sableContraptions.contains("contraptions", Tag.TAG_LIST)) {
-            ListTag list = sableContraptions.getList("contraptions", Tag.TAG_COMPOUND);
+        } else if (sableContraptions.contains(
+                "contraptions", Tag.TAG_LIST
+        )) {
+            ListTag list = sableContraptions.getList(
+                    "contraptions", Tag.TAG_COMPOUND
+            );
+
             for (int i = 0; i < list.size(); i++) {
                 CompoundTag tag = list.getCompound(i);
+
                 if (tag.hasUUID("uuid")) {
-                    String name = tag.getString("name");
                     UUID uuid = tag.getUUID("uuid");
+                    String name = tag.getString("name");
+                    boolean nameEmpty = name.isEmpty();
+
                     if (name.isEmpty()) {
-                        name = "Contraption " + uuid.toString().substring(0, 8);
+                        name = "Contraption "
+                                + uuid.toString().substring(0, 8);
                     }
-                    contraptions.add(new ContraptionEntry(uuid, name));
+
+                    contraptions.add(new ContraptionEntry(uuid, name, nameEmpty));
                 }
             }
         }
@@ -105,113 +172,165 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
                 .horizontalAlignment(HorizontalAlignment.CENTER)
                 .verticalAlignment(VerticalAlignment.CENTER);
 
+        // Main window
         FlowLayout mainContainer = Containers.verticalFlow(
-                Sizing.fill(92),
-                Sizing.fill(92)
+                Sizing.fill(96),
+                Sizing.fill(94)
         );
         mainContainer.surface(Surface.BLANK);
-        mainContainer.padding(Insets.of(2));
-        mainContainer.gap(6);
+        mainContainer.gap(3);
 
         // Header
         FlowLayout header = Containers.horizontalFlow(
-                        Sizing.fill(100),
-                        Sizing.fixed(30)
-                );
+                Sizing.fill(100),
+                Sizing.fixed(20)
+        );
         header.surface(Surface.DARK_PANEL);
         header.verticalAlignment(VerticalAlignment.CENTER);
-        header.padding(Insets.horizontal(10));
+        header.padding(Insets.horizontal(6));
+        header.gap(3);
 
-        header.child(
-                Components.label(Component.literal("§b§6sableFinder"))
-        );
-        header.child(
-                Components.label(Component.literal(" §8/ §7Contraption Browser"))
-        );
+        header.child(Components.label(
+                Component.literal("§6sableFinder")
+        ));
+
+        header.child(Components.label(
+                Component.literal("§8/ §7Contraption Browser")
+        ));
+
         header.child(Components.spacer());
-        foundCountLabel = Components.label(Component.literal("§7Found: §f" + contraptions.size()));
+
+        foundCountLabel = Components.label(
+                Component.literal("§7Found: §f" + contraptions.size())
+        );
         header.child(foundCountLabel);
 
-        // Main content area: Sidebar on left, Details on right
+        // Three-column content area
         FlowLayout content = Containers.horizontalFlow(
                 Sizing.fill(100),
                 Sizing.expand()
         );
-        content.gap(6);
+        content.gap(4);
 
-        // Left sidebar
-        FlowLayout sidebar = Containers.verticalFlow(
-                        Sizing.fixed(180),
-                        Sizing.fill(100)
-                );
-        sidebar.surface(Surface.DARK_PANEL);
-        sidebar.padding(Insets.of(6));
-        sidebar.gap(4);
+        // ---------------------------------------------------------
+        // LEFT COLUMN: Contraption list
+        // ---------------------------------------------------------
 
-        sidebar.child(
-                Components.label(Component.literal("§lContraptions"))
-                        .margins(Insets.of(2))
+        CollapsibleContainer sidebar = Containers.collapsible(
+                Sizing.fill(25),
+                Sizing.fill(100),
+                Component.literal("§bContraptions"),
+                !leftSidebarCollapsed
         );
+        sidebar.gap(3);
+
+        searchBox = Components.textBox(Sizing.fill(100));
+        searchBox.setHint(Component.literal("§7Search..."));
+        searchBox.setMaxLength(64);
+        searchBox.text(searchQuery);
+        searchBox.onChanged().subscribe(value -> {
+            searchQuery = value;
+            rebuildContraptionList();
+        });
+        searchBox.margins(Insets.bottom(3));
 
         contraptionList = Containers.verticalFlow(
                 Sizing.fill(100),
                 Sizing.content()
         );
-        contraptionList.gap(4);
-        contraptionList.padding(Insets.right(6));
+        contraptionList.gap(2);
+        contraptionList.padding(Insets.right(SCROLLBAR_RIGHT_PADDING));
 
         rebuildContraptionList();
 
-        sidebar.child(
+        ScrollContainer<FlowLayout> listScroll =
                 Containers.verticalScroll(
-                                Sizing.fill(100),
-                                Sizing.expand(),
-                                contraptionList
-                        )
-                        .scrollbar(ScrollContainer.Scrollbar.vanilla())
-                        .scrollbarThiccness(4)
-        );
+                        Sizing.fill(100),
+                        Sizing.expand(),
+                        contraptionList
+                );
 
-        // Right details panel
-        FlowLayout detailsPanel = Containers.verticalFlow(
+        listScroll
+                .scrollbar(ScrollContainer.Scrollbar.vanillaFlat())
+                .scrollbarThiccness(4);
+
+        sidebar.child(searchBox);
+        sidebar.child(listScroll);
+
+        // ---------------------------------------------------------
+        // MIDDLE COLUMN: 3D preview
+        // ---------------------------------------------------------
+
+        FlowLayout previewPanel = Containers.verticalFlow(
                 Sizing.expand(),
                 Sizing.fill(100)
         );
-        detailsPanel.surface(Surface.DARK_PANEL);
-        detailsPanel.padding(Insets.of(8));
+        previewPanel.surface(Surface.DARK_PANEL);
+        previewPanel.padding(Insets.of(4));
+        previewPanel.gap(3);
+
+        // This container holds the selected contraption's preview.
+        top3dContainer = Containers.verticalFlow(
+                Sizing.fill(100),
+                Sizing.expand()
+        );
+        top3dContainer.gap(3);
+
+        previewPanel.child(top3dContainer);
+
+        // ---------------------------------------------------------
+        // RIGHT COLUMN: Scrollable details
+        // ---------------------------------------------------------
+
+        FlowLayout detailsPanel = Containers.verticalFlow(
+                rightSidebarCollapsed ? Sizing.fixed(COLLAPSED_SIDEBAR_WIDTH) : Sizing.fill(38),
+                Sizing.fill(100)
+        );
+        detailsPanel.gap(3);
 
         detailsContent = Containers.verticalFlow(
                 Sizing.fill(100),
                 Sizing.content()
         );
-        detailsContent.gap(6);
-        detailsContent.padding(Insets.right(8));
+        detailsContent.gap(4);
+        detailsContent.padding(Insets.right(SCROLLBAR_RIGHT_PADDING));
 
-        detailsPanel.child(
+        ScrollContainer<FlowLayout> detailsScroll =
                 Containers.verticalScroll(
-                                Sizing.fill(100),
-                                Sizing.fill(100),
-                                detailsContent
-                        )
-                        .scrollbar(ScrollContainer.Scrollbar.vanilla())
-                        .scrollbarThiccness(4)
-        );
+                        Sizing.fill(100),
+                        Sizing.expand(),
+                        detailsContent
+                );
 
+        detailsScroll
+                .scrollbar(ScrollContainer.Scrollbar.vanillaFlat())
+                .scrollbarThiccness(4);
+
+        if (!rightSidebarCollapsed) {
+            detailsPanel.child(detailsScroll);
+        }
+
+        // Assemble columns in the correct order.
         content.child(sidebar);
+        content.child(previewPanel);
         content.child(detailsPanel);
 
-        // Footer
+        // ---------------------------------------------------------
+        // FOOTER
+        // ---------------------------------------------------------
+
         FlowLayout footer = Containers.horizontalFlow(
-                        Sizing.fill(100),
-                        Sizing.fixed(28)
-                );
+                Sizing.fill(100),
+                Sizing.fixed(24)
+        );
         footer.surface(Surface.DARK_PANEL);
         footer.verticalAlignment(VerticalAlignment.CENTER);
         footer.padding(Insets.horizontal(8));
+        footer.gap(4);
 
-        footer.child(
-                Components.label(Component.literal("§8Sable Contraption Inspector"))
-        );
+        footer.child(Components.label(
+                Component.literal("§8Use UP/DOWN arrows to quick browse contraptions")
+        ));
 
         footer.child(Components.spacer());
 
@@ -219,14 +338,16 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
                 Component.literal("Reload"),
                 button -> reloadContraptions()
         );
-        reloadButton.horizontalSizing(Sizing.fixed(60));
+        reloadButton.horizontalSizing(Sizing.fixed(65));
+        reloadButton.verticalSizing(Sizing.fixed(20));
         footer.child(reloadButton);
 
         ButtonComponent closeButton = Components.button(
                 Component.literal("Close"),
                 button -> onClose()
         );
-        closeButton.horizontalSizing(Sizing.fixed(60));
+        closeButton.horizontalSizing(Sizing.fixed(65));
+        closeButton.verticalSizing(Sizing.fixed(20));
         footer.child(closeButton);
 
         mainContainer.child(header);
@@ -236,58 +357,87 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
         rootComponent.child(mainContainer);
 
         if (!contraptions.isEmpty()) {
-            selectContraption(contraptions.get(0).uuid());
+            UUID initialUuid = selectedUuid != null
+                    && contraptions.stream().anyMatch(
+                    entry -> entry.uuid().equals(selectedUuid)
+            )
+                    ? selectedUuid
+                    : selectedContraptionID != null
+                    && contraptions.stream().anyMatch(
+                    entry -> entry.uuid().equals(selectedContraptionID)
+            )
+                    ? selectedContraptionID
+                    : contraptions.get(0).uuid();
+
+            selectContraption(initialUuid);
         } else {
             showNoSelection();
         }
     }
 
+    // -------------------------------------------------------------
+    // CONTRAPTION LIST
+    // -------------------------------------------------------------
+
     private void rebuildContraptionList() {
+        if (contraptionList == null) {
+            return;
+        }
+
         contraptionList.clearChildren();
+        listItems.clear();
 
-        if (contraptions.isEmpty()) {
-            FlowLayout emptyItem = (FlowLayout) Containers.verticalFlow(
-                            Sizing.fill(100),
-                            Sizing.content()
-                    ).padding(Insets.of(6))
-                    .horizontalAlignment(HorizontalAlignment.CENTER);
+        List<ContraptionEntry> visible = filteredContraptions();
 
-            emptyItem.child(Components.label(Component.literal("§7No contraptions\n§8found in world")));
+        if (visible.isEmpty()) {
+            FlowLayout emptyItem = Containers.verticalFlow(
+                    Sizing.fill(100),
+                    Sizing.content()
+            );
+            emptyItem.padding(Insets.of(4));
+            emptyItem.horizontalAlignment(HorizontalAlignment.CENTER);
+
+            emptyItem.child(Components.label(
+                    Component.literal(contraptions.isEmpty()
+                            ? "§7No contraptions found"
+                            : "§7No matching contraptions")
+            ));
+
             contraptionList.child(emptyItem);
             return;
         }
 
-        for (ContraptionEntry entry : contraptions) {
-            boolean isSelected = entry.uuid().equals(selectedUuid);
+        for (ContraptionEntry entry : visible) {
             FlowLayout item = Containers.verticalFlow(
-                            Sizing.fill(100),
-                            Sizing.content()
-                    );
-            item.tooltip(
-                    Component.literal(entry.name)
-                            .append(Component.literal("\n§7UUID: ")
-                                    .append(Component.literal(entry.uuid.toString())))
+                    Sizing.fill(100),
+                    Sizing.content()
             );
-            item.surface(isSelected ? Surface.outline(0xFFced8cd) : Surface.PANEL);
-            item.padding(Insets.of(5));
-            item.gap(2);
 
-            String displayName = entry.name().length() > 20
-                    ? entry.name().substring(0, 18) + "..."
+            item.padding(Insets.of(3));
+            item.gap(1);
+
+            item.tooltip(
+                    Component.literal(entry.name())
+                            .append(Component.literal(
+                                    "\n§7UUID: " + entry.uuid()
+                            ))
+            );
+
+            String displayName = entry.name().length() > 19
+                    ? entry.name().substring(0, 16) + "..."
                     : entry.name();
 
-            item.child(
-                    Components.label(
-                            Component.literal((isSelected ? "§l" : "§f") + displayName)
-                    )
+            LabelComponent nameLabel = Components.label(
+                    Component.literal((entry.nameEmpty() ? "§f" : "§6") + displayName)
             );
 
-            String shortUuid = entry.uuid().toString().substring(0, 8) + "...";
-            item.child(
-                    Components.label(
-                            Component.literal("§8" + shortUuid)
+            item.child(nameLabel);
+
+            item.child(Components.label(
+                    Component.literal(
+                            "§8" + entry.uuid().toString().substring(0, 15) + "..."
                     )
-            );
+            ));
 
             item.mouseDown().subscribe((mouseX, mouseY, button) -> {
                 if (button == 0) {
@@ -295,34 +445,123 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
                     selectContraption(entry.uuid());
                     return true;
                 }
+
                 return false;
             });
+
+            ContraptionItem listItem = new ContraptionItem(
+                    entry.uuid(), displayName, entry.nameEmpty(), item, nameLabel
+            );
+
+            listItems.add(listItem);
+            applyItemStyle(listItem);
 
             contraptionList.child(item);
         }
     }
 
-    private void selectContraption(UUID uuid) {
-        this.selectedUuid = uuid;
-        rebuildContraptionList();
+    private List<ContraptionEntry> filteredContraptions() {
+        if (searchQuery == null || searchQuery.isBlank()) {
+            return contraptions;
+        }
 
-        detailsContent.clearChildren();
-        detailsContent.child(
-                Components.label(Component.literal("§7Loading contraption data from server..."))
+        String query = searchQuery.toLowerCase(Locale.ROOT);
+
+        return contraptions.stream()
+                .filter(entry -> entry.name().toLowerCase(Locale.ROOT).contains(query)
+                        || entry.uuid().toString().toLowerCase(Locale.ROOT).contains(query))
+                .toList();
+    }
+
+    private void updateContraptionSelection() {
+        for (ContraptionItem listItem : listItems) {
+            applyItemStyle(listItem);
+        }
+    }
+
+    private void applyItemStyle(ContraptionItem listItem) {
+        boolean isSelected = listItem.uuid().equals(selectedUuid);
+
+        listItem.root().surface(
+                isSelected
+                        ? Surface.outline(0xFF8AB4F8)
+                        : Surface.outline(0xFF5F6368)
+                        .and(Surface.flat(0xFF30343B))
         );
 
-        SableContraptionClient.request(uuid).whenComplete((data, error) -> {
-            if (this.minecraft != null) {
-                this.minecraft.execute(() -> {
-                    if (Objects.equals(this.selectedUuid, uuid)) {
-                        if (error != null || data == null) {
-                            showError("Failed to load contraption: " + (error != null ? error.getMessage() : "Unknown error"));
-                        } else {
-                            displayContraptionDetails(data);
-                        }
-                    }
-                });
+        String nameColor = listItem.nameEmpty() ? "§f" : "§6";
+
+        listItem.nameLabel().text(Component.literal(
+                (isSelected ? "§l" : "") + nameColor + listItem.displayName()
+        ));
+    }
+
+    // -------------------------------------------------------------
+    // SELECTION AND NETWORK REQUESTS
+    // -------------------------------------------------------------
+
+    private void selectContraption(int index) {
+        if (index < 0 || index >= contraptions.size()) {
+            return;
+        }
+
+        selectedContraptionIndex = index;
+
+        selectContraption(contraptions.get(index).uuid());
+    }
+
+    private int indexOfContraption(@Nullable UUID uuid) {
+        if (uuid == null) {
+            return -1;
+        }
+
+        for (int i = 0; i < contraptions.size(); i++) {
+            if (contraptions.get(i).uuid().equals(uuid)) {
+                return i;
             }
+        }
+
+        return -1;
+    }
+
+    private void selectContraption(UUID uuid) {
+        selectedUuid = uuid;
+        selectedContraptionIndex = indexOfContraption(uuid);
+
+        updateContraptionSelection();
+
+        if (top3dContainer != null) {
+            top3dContainer.clearChildren();
+        }
+
+        if (detailsContent != null) {
+            detailsContent.clearChildren();
+            detailsContent.child(Components.label(
+                    Component.literal("§7Loading contraption data...")
+            ));
+        }
+
+        SableContraptionClient.request(uuid).whenComplete((data, error) -> {
+            if (this.minecraft == null) {
+                return;
+            }
+
+            this.minecraft.execute(() -> {
+                if (!Objects.equals(selectedUuid, uuid)) {
+                    return;
+                }
+
+                if (error != null || data == null) {
+                    showError(
+                            "Failed to load contraption: "
+                                    + (error != null
+                                    ? error.getMessage()
+                                    : "Unknown error")
+                    );
+                } else {
+                    displayContraptionDetails(data);
+                }
+            });
         });
     }
 
@@ -332,206 +571,479 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
             reloadButton.setMessage(Component.literal("Reloading..."));
         }
 
-        SableContraptionClient.requestContraptionList().whenComplete((tag, error) -> {
-            if (this.minecraft != null) {
-                this.minecraft.execute(() -> {
-                    if (reloadButton != null) {
-                        reloadButton.active = true;
-                        reloadButton.setMessage(Component.literal("Reload"));
-                    }
-
-                    if (error != null || tag == null) {
-                        showError("Failed to reload contraptions: " + (error != null ? error.getMessage() : "Unknown error"));
+        SableContraptionClient.requestContraptionList()
+                .whenComplete((tag, error) -> {
+                    if (this.minecraft == null) {
                         return;
                     }
 
-                    this.sableContraptions = tag;
-                    parseContraptions();
-                    if (foundCountLabel != null) {
-                        foundCountLabel.text(Component.literal("§7Found: §f" + contraptions.size()));
-                    }
-                    rebuildContraptionList();
+                    this.minecraft.execute(() -> {
+                        if (reloadButton != null) {
+                            reloadButton.active = true;
+                            reloadButton.setMessage(
+                                    Component.literal("Reload")
+                            );
+                        }
 
-                    if (selectedUuid != null && contraptions.stream().anyMatch(e -> e.uuid().equals(selectedUuid))) {
-                        selectContraption(selectedUuid);
-                    } else if (!contraptions.isEmpty()) {
-                        selectContraption(contraptions.get(0).uuid());
-                    } else {
-                        selectedUuid = null;
-                        showNoSelection();
-                    }
+                        if (error != null || tag == null) {
+                            showError(
+                                    "Failed to reload contraptions: "
+                                            + (error != null
+                                            ? error.getMessage()
+                                            : "Unknown error")
+                            );
+                            return;
+                        }
+
+                        sableContraptions = tag;
+                        parseContraptions();
+
+                        if (foundCountLabel != null) {
+                            foundCountLabel.text(Component.literal(
+                                    "§7Found: §f" + contraptions.size()
+                            ));
+                        }
+
+                        rebuildContraptionList();
+
+                        if (selectedUuid != null
+                                && contraptions.stream().anyMatch(
+                                entry -> entry.uuid().equals(selectedUuid)
+                        )) {
+                            selectContraption(selectedUuid);
+                        } else if (!contraptions.isEmpty()) {
+                            selectContraption(contraptions.get(0).uuid());
+                        } else {
+                            selectedUuid = null;
+                            updateContraptionSelection();
+                            showNoSelection();
+                        }
+                    });
                 });
-            }
-        });
     }
 
+    // -------------------------------------------------------------
+    // EMPTY AND ERROR STATES
+    // -------------------------------------------------------------
+
     private void showNoSelection() {
+        if (top3dContainer != null) {
+            top3dContainer.clearChildren();
+        }
+
+        if (detailsContent == null) {
+            return;
+        }
+
         detailsContent.clearChildren();
+
         FlowLayout placeholder = Containers.verticalFlow(
                 Sizing.fill(100),
                 Sizing.content()
         );
-        placeholder.padding(Insets.of(20));
-        placeholder.horizontalAlignment(HorizontalAlignment.CENTER);
-        placeholder.gap(8);
+        placeholder.padding(Insets.of(6));
+        placeholder.gap(4);
 
-        placeholder.child(Components.label(Component.literal("§7No contraption selected")));
-        placeholder.child(Components.label(Component.literal("§8Select a contraption on the left sidebar to view details.")));
+        placeholder.child(Components.label(
+                Component.literal("§7No contraption selected")
+        ));
+        placeholder.child(Components.label(
+                Component.literal("§8Select a contraption from the left.")
+        ));
+
         detailsContent.child(placeholder);
     }
 
     private void showError(String message) {
-        detailsContent.clearChildren();
-        FlowLayout errBox = Containers.verticalFlow(
-                Sizing.fill(100),
-                Sizing.content()
-        );
-        errBox.padding(Insets.of(12));
-        errBox.gap(6);
-
-        errBox.child(Components.label(Component.literal("§c§lError")));
-        errBox.child(Components.label(Component.literal("§c" + message)));
-
-        if (selectedUuid != null) {
-            ButtonComponent retryBtn = Components.button(
-                    Component.literal("Retry"),
-                    b -> selectContraption(selectedUuid)
-            );
-            retryBtn.horizontalSizing(Sizing.fixed(80));
-            errBox.child(retryBtn);
+        if (top3dContainer != null) {
+            top3dContainer.clearChildren();
         }
 
-        detailsContent.child(errBox);
-    }
+        if (detailsContent == null) {
+            return;
+        }
 
-    private void displayContraptionDetails(SableContraptionData data) {
         detailsContent.clearChildren();
 
-        // Title and actions card
-        FlowLayout headerCard = Containers.verticalFlow(
+        FlowLayout errorBox = Containers.verticalFlow(
                 Sizing.fill(100),
                 Sizing.content()
         );
-        headerCard.surface(Surface.PANEL);
-        headerCard.padding(Insets.of(8));
-        headerCard.gap(4);
+        errorBox.padding(Insets.of(6));
+        errorBox.gap(4);
 
-        String name = data.displayName() != null && !data.displayName().isEmpty()
+        errorBox.child(Components.label(
+                Component.literal("§c§lError")
+        ));
+        errorBox.child(Components.label(
+                Component.literal("§c" + message)
+        ));
+
+        if (selectedUuid != null) {
+            ButtonComponent retryButton = Components.button(
+                    Component.literal("Retry"),
+                    button -> selectContraption(selectedUuid)
+            );
+
+            retryButton.horizontalSizing(Sizing.fixed(64));
+            retryButton.verticalSizing(Sizing.fixed(18));
+            errorBox.child(retryButton);
+        }
+
+        detailsContent.child(errorBox);
+    }
+
+    // -------------------------------------------------------------
+    // 3D PREVIEW
+    // -------------------------------------------------------------
+
+    private void displayContraptionDetails(SableContraptionData data) {
+        if (top3dContainer != null) {
+            top3dContainer.clearChildren();
+        }
+
+        detailsContent.clearChildren();
+
+        Contraption3DViewComponent preview3d =
+                new Contraption3DViewComponent(data);
+        preview3d.horizontalSizing(Sizing.fill(100));
+        preview3d.verticalSizing(Sizing.expand());
+
+        // Preview toolbar
+        FlowLayout toolbar = Containers.horizontalFlow(
+                Sizing.fill(100),
+                Sizing.fixed(18)
+        );
+        toolbar.verticalAlignment(VerticalAlignment.CENTER);
+        toolbar.gap(2);
+
+        ButtonComponent autoRotateButton = Components.button(
+                Component.literal(
+                        "Rot: " + (preview3d.isAutoRotate() ? "ON" : "OFF")
+                ),
+                button -> {
+                    preview3d.toggleAutoRotate();
+                    button.setMessage(Component.literal(
+                            "Rot: "
+                                    + (preview3d.isAutoRotate() ? "ON" : "OFF")
+                    ));
+                }
+        );
+        autoRotateButton.horizontalSizing(Sizing.fixed(45));
+        autoRotateButton.verticalSizing(Sizing.fixed(18));
+
+        preview3d.setOnAutoRotateChanged(enabled ->
+                autoRotateButton.setMessage(Component.literal(
+                        "Rot: " + (enabled ? "ON" : "OFF")
+                ))
+        );
+
+        ButtonComponent wireframeButton = Components.button(
+                Component.literal(
+                        "WF: "
+                                + (preview3d.isShowBoundingBox() ? "ON" : "OFF")
+                ),
+                button -> {
+                    preview3d.toggleBoundingBox();
+                    button.setMessage(Component.literal(
+                            "WF: "
+                                    + (preview3d.isShowBoundingBox() ? "ON" : "OFF")
+                    ));
+                }
+        );
+        wireframeButton.horizontalSizing(Sizing.fixed(45));
+        wireframeButton.verticalSizing(Sizing.fixed(18));
+
+        ButtonComponent resetButton = Components.button(
+                Component.literal("Reset"),
+                button -> {
+                    preview3d.resetView();
+                    autoRotateButton.setMessage(
+                            Component.literal("Rot: OFF")
+                    );
+                }
+        );
+        resetButton.horizontalSizing(Sizing.fixed(40));
+        resetButton.verticalSizing(Sizing.fixed(18));
+
+        toolbar.child(autoRotateButton);
+        toolbar.child(wireframeButton);
+        toolbar.child(resetButton);
+
+        if (top3dContainer != null) {
+            top3dContainer.child(toolbar);
+
+            // Let the preview occupy the remaining middle-column space.
+            preview3d.horizontalSizing(Sizing.fill(100));
+            preview3d.verticalSizing(Sizing.expand());
+
+            top3dContainer.child(preview3d);
+        }
+
+
+        String name = data.displayName() != null
+                && !data.displayName().isEmpty()
                 ? data.displayName()
                 : "Contraption (" + data.uuid().toString().substring(0, 8) + ")";
 
-        headerCard.child(Components.label(Component.literal(name)));
+        FlowLayout headerCard = createSectionCard("§e" + name);
 
-        FlowLayout uuidRow = Containers.horizontalFlow(
+        FlowLayout uuidRow = Containers.verticalFlow(
                 Sizing.fill(100),
                 Sizing.content()
         );
-        uuidRow.verticalAlignment(VerticalAlignment.CENTER);
-        uuidRow.gap(6);
+        uuidRow.gap(2);
 
-        uuidRow.child(Components.label(Component.literal("§7UUID: §f" + data.uuid())));
-        ButtonComponent copyUuidBtn = Components.button(
-                Component.literal("Copy"),
-                b -> {
+        uuidRow.child(Components.label(
+                Component.literal("§7UUID:")
+        ));
+
+        uuidRow.child(
+                Components.label(
+                    Component.literal("§f" + data.uuid())
+                )
+        );
+
+        ButtonComponent copyUuidButton = (ButtonComponent) Components.button(
+                Component.literal("Copy UUID"),
+                button -> {
                     if (this.minecraft != null) {
-                        this.minecraft.keyboardHandler.setClipboard(data.uuid().toString());
+                        this.minecraft.keyboardHandler.setClipboard(
+                                data.uuid().toString()
+                        );
                     }
                 }
-        );
-        copyUuidBtn.horizontalSizing(Sizing.fixed(45));
-        copyUuidBtn.verticalSizing(Sizing.fixed(16));
-        uuidRow.child(copyUuidBtn);
+        ).tooltip(Component.literal(data.uuid().toString()));
+        copyUuidButton.horizontalSizing(Sizing.fill(100));
+        copyUuidButton.verticalSizing(Sizing.fixed(20));
+
+        uuidRow.child(copyUuidButton);
         headerCard.child(uuidRow);
 
         detailsContent.child(headerCard);
 
-        // General Info Section
-        FlowLayout infoCard = createSectionCard("§ePosition & Pose");
-        Pose3d pose = data.pose();
-        if (pose != null) {
-            Vector3d pos = pose.position();
-            infoCard.child(createDataRow("Position", String.format(Locale.ROOT, "X: %.2f, Y: %.2f, Z: %.2f", pos.x, pos.y, pos.z)));
+        // Actions
 
+        FlowLayout actionsCard = createSectionCard("§eActions");
+
+        ButtonComponent teleport = Components.button(
+                Component.literal("Teleport to"),
+                button -> {}
+        );
+        teleport.horizontalSizing(Sizing.fill(100));
+        teleport.verticalSizing(Sizing.fixed(20));
+        actionsCard.child(teleport);
+
+        ButtonComponent deleteContraption = Components.button(
+                Component.literal("§cDelete"),
+                button -> {}
+        );
+        deleteContraption.horizontalSizing(Sizing.fill(100));
+        deleteContraption.verticalSizing(Sizing.fixed(20));
+        actionsCard.child(deleteContraption);
+
+        detailsContent.child(actionsCard);
+
+        // Position and pose
+        FlowLayout infoCard = createSectionCard("§ePosition & Pose");
+
+        Pose3d pose = data.pose();
+
+        if (pose != null) {
+            Vector3d position = pose.position();
             Vector3d scale = pose.scale();
-            infoCard.child(createDataRow("Scale", String.format(Locale.ROOT, "%.2f × %.2f × %.2f", scale.x, scale.y, scale.z)));
+
+            infoCard.child(createDataRow(
+                    "Position",
+                    Component.literal(String.format(
+                            Locale.ROOT, "%.2f, %.2f, %.2f",
+                            position.x, position.y, position.z
+                    ))
+            ));
+
+            infoCard.child(createDataRow(
+                    "Scale",
+                    Component.literal(String.format(
+                            Locale.ROOT, "%.2f × %.2f × %.2f",
+                            scale.x, scale.y, scale.z
+                    ))
+            ));
         }
 
         BoundingBox3d bounds = data.bounds();
+
         if (bounds != null) {
             double sizeX = bounds.maxX - bounds.minX;
             double sizeY = bounds.maxY - bounds.minY;
             double sizeZ = bounds.maxZ - bounds.minZ;
-            infoCard.child(createDataRow("Bounding Box", String.format(Locale.ROOT, "[%.1f, %.1f, %.1f] to [%.1f, %.1f, %.1f]",
-                    bounds.minX, bounds.minY, bounds.minZ, bounds.maxX, bounds.maxY, bounds.maxZ)));
-            infoCard.child(createDataRow("Dimensions", String.format(Locale.ROOT, "%.1f × %.1f × %.1f", sizeX, sizeY, sizeZ)));
+
+            infoCard.child(createDataRow(
+                    "Bounds min",
+                    Component.literal(String.format(
+                            Locale.ROOT, "%.1f, %.1f, %.1f",
+                            bounds.minX, bounds.minY, bounds.minZ
+                    ))
+            ));
+
+            infoCard.child(createDataRow(
+                    "Bounds max",
+                    Component.literal(String.format(
+                            Locale.ROOT, "%.1f, %.1f, %.1f",
+                            bounds.maxX, bounds.maxY, bounds.maxZ
+                    ))
+            ));
+
+            infoCard.child(createDataRow(
+                    "Dimensions",
+                    Component.literal(String.format(
+                            Locale.ROOT, "%.1f × %.1f × %.1f",
+                            sizeX, sizeY, sizeZ
+                    ))
+            ));
         }
 
         if (data.originChunk() != null) {
-            infoCard.child(createDataRow("Origin Chunk", "[" + data.originChunk().x + ", " + data.originChunk().z + "]"));
+            infoCard.child(createDataRow(
+                    "Origin Chunk",
+                    Component.literal(data.originChunk().x + ", " + data.originChunk().z)
+            ));
         }
 
         detailsContent.child(infoCard);
 
-        // SubLevel & World Properties Section
-        FlowLayout sublevelCard = createSectionCard("§eSubLevel Storage");
-        sublevelCard.child(createDataRow("Plot Coordinates", "X: " + data.plotX() + ", Z: " + data.plotZ()));
-        sublevelCard.child(createDataRow("Log Size", String.valueOf(data.logSize())));
-        sublevelCard.child(createDataRow("Loaded Chunks", String.valueOf(data.chunkCount())));
+        // SubLevel storage and world properties
+        FlowLayout storageCard = createSectionCard("§eSubLevel Storage");
+
+        storageCard.child(createDataRow(
+                "Plot Coordinates",
+                Component.literal("X: " + data.plotX() + ", Z: " + data.plotZ())
+        ));
+        storageCard.child(createDataRow(
+                "Log Size",
+                Component.literal(String.valueOf(data.logSize()))
+        ));
+        storageCard.child(createDataRow(
+                "Loaded Chunks",
+                Component.literal(String.valueOf(data.chunkCount()))
+        ));
+
         if (data.biome() != null) {
-            sublevelCard.child(createDataRow("Biome", data.biome().location().toString()));
+            storageCard.child(createDataRow(
+                    "Biome",
+                    Component.literal(data.biome().location().toString())
+            ));
         }
-        sublevelCard.child(createDataRow("Data Version", String.valueOf(data.dataVersion())));
 
-        detailsContent.child(sublevelCard);
+        storageCard.child(createDataRow(
+                "Data Version",
+                Component.literal(String.valueOf(data.dataVersion()))
+        ));
 
-        // Velocity & Physics (if present)
-        if (data.linearVelocity() != null || data.angularVelocity() != null) {
+        detailsContent.child(storageCard);
+
+        // Motion
+        if (data.linearVelocity() != null
+                || data.angularVelocity() != null) {
             FlowLayout motionCard = createSectionCard("§eMotion");
+
             if (data.linearVelocity() != null) {
-                Vector3d lv = data.linearVelocity();
-                motionCard.child(createDataRow("Linear Velocity", String.format(Locale.ROOT, "%.3f, %.3f, %.3f", lv.x, lv.y, lv.z)));
+                Vector3d velocity = data.linearVelocity();
+
+                motionCard.child(createDataRow(
+                        "Linear Velocity",
+                        Component.literal(String.format(
+                                Locale.ROOT, "%.3f, %.3f, %.3f",
+                                velocity.x, velocity.y, velocity.z
+                        ))
+                ));
             }
+
             if (data.angularVelocity() != null) {
-                Vector3d av = data.angularVelocity();
-                motionCard.child(createDataRow("Angular Velocity", String.format(Locale.ROOT, "%.3f, %.3f, %.3f", av.x, av.y, av.z)));
+                Vector3d velocity = data.angularVelocity();
+
+                motionCard.child(createDataRow(
+                        "Angular Velocity",
+                        Component.literal(String.format(
+                                Locale.ROOT, "%.3f, %.3f, %.3f",
+                                velocity.x, velocity.y, velocity.z
+                        ))
+                ));
             }
+
             detailsContent.child(motionCard);
         }
 
         // Dependencies
-        if (data.dependencies() != null && !data.dependencies().isEmpty()) {
-            FlowLayout depCard = createSectionCard("§eDependencies (" + data.dependencies().size() + ")");
-            for (UUID depId : data.dependencies()) {
-                depCard.child(createDataRow("Dependency", depId.toString()));
+        if (data.dependencies() != null
+                && !data.dependencies().isEmpty()) {
+            FlowLayout dependenciesCard = createSectionCard(
+                    "§eDependencies (" + data.dependencies().size() + ")"
+            );
+
+            for (UUID dependency : data.dependencies()) {
+                FlowLayout dependencyRow = Containers.verticalFlow(
+                        Sizing.fill(100),
+                        Sizing.content()
+                );
+                dependencyRow.padding(Insets.of(2));
+                dependencyRow.child(Components.label(
+                        Component.literal("§f" + dependency)
+                ));
+
+                dependenciesCard.child(dependencyRow);
             }
-            detailsContent.child(depCard);
+
+            detailsContent.child(dependenciesCard);
         }
     }
+
+    // -------------------------------------------------------------
+    // DETAIL COMPONENT HELPERS
+    // -------------------------------------------------------------
 
     private FlowLayout createSectionCard(String title) {
         FlowLayout card = Containers.verticalFlow(
                 Sizing.fill(100),
                 Sizing.content()
         );
-        card.surface(Surface.PANEL);
-        card.padding(Insets.of(6));
-        card.gap(3);
+
+        card.surface(Surface.DARK_PANEL);
+        card.padding(Insets.of(4));
+        card.gap(2);
 
         card.child(Components.label(Component.literal(title)));
+
         return card;
     }
 
-    private FlowLayout createDataRow(String label, String value) {
-        FlowLayout row = Containers.horizontalFlow(
+    private FlowLayout createDataRow(String label, Component ...components) {
+        FlowLayout row = Containers.verticalFlow(
                 Sizing.fill(100),
                 Sizing.content()
         );
-        row.gap(6);
 
-        row.child(Components.label(Component.literal("§7" + label + ":")));
-        row.child(Components.label(Component.literal("§f" + value)));
+        row.gap(1);
+
+        row.child(Components.label(
+                Component.literal("§7" + label)
+        ));
+
+        Arrays.stream(components).forEach(component ->
+                row.child(Components.label(
+                        component
+                ))
+        );
+
         return row;
     }
 
-    private record ContraptionEntry(UUID uuid, String name) {}
+    public record ContraptionEntry(UUID uuid, String name, boolean nameEmpty) {}
+
+    public record ContraptionItem(
+            UUID uuid,
+            String displayName,
+            boolean nameEmpty,
+            FlowLayout root,
+            LabelComponent nameLabel
+    ) {}
 }

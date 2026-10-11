@@ -14,6 +14,7 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.biome.Biomes;
 import net.minecraft.world.level.block.Blocks;
@@ -230,6 +231,31 @@ public class SableContraptionData {
         return contraption;
     }
 
+    public void ensureChunksLoaded(final Level level) {
+        if (!this.chunks.isEmpty() || this.fullTag == null) {
+            return;
+        }
+        if (!this.fullTag.contains("plot")) {
+            return;
+        }
+        final CompoundTag plot = this.fullTag.getCompound("plot");
+        if (!plot.contains("chunks")) {
+            return;
+        }
+        final CompoundTag chunksTag = plot.getCompound("chunks");
+        for (final String key : chunksTag.getAllKeys()) {
+            try {
+                final long packed = Long.parseLong(key);
+                final ChunkPos local = new ChunkPos(ChunkPos.getX(packed), ChunkPos.getZ(packed));
+                final StoredSubLevelChunk chunk = StoredSubLevelChunk.fromNbt(
+                        local, chunksTag.getCompound(key), level, this.biome != null ? this.biome : Biomes.PLAINS
+                );
+                this.chunks.put(packed, chunk);
+            } catch (final Exception ignored) {
+            }
+        }
+    }
+
     public UUID uuid() {
         return this.uuid;
     }
@@ -291,18 +317,30 @@ public class SableContraptionData {
     }
 
     public int chunkCount() {
+        if (this.chunks.isEmpty()) {
+            ensureChunksLoaded(null);
+        }
         return this.chunks.size();
     }
 
     public StoredSubLevelChunk getChunk(final ChunkPos localPos) {
+        if (this.chunks.isEmpty()) {
+            ensureChunksLoaded(null);
+        }
         return this.chunks.get(localPos.toLong());
     }
 
     public Collection<StoredSubLevelChunk> getChunks() {
+        if (this.chunks.isEmpty()) {
+            ensureChunksLoaded(null);
+        }
         return this.chunks.values();
     }
 
     public BlockState getBlockState(final int x, final int y, final int z) {
+        if (this.chunks.isEmpty()) {
+            ensureChunksLoaded(null);
+        }
         final StoredSubLevelChunk chunk = this.chunks.get(ChunkPos.asLong(x >> 4, z >> 4));
         if (chunk == null) {
             return Blocks.AIR.defaultBlockState();
@@ -315,6 +353,9 @@ public class SableContraptionData {
     }
 
     public void forEachBlock(final BiConsumer<BlockPos, BlockState> consumer) {
+        if (this.chunks.isEmpty()) {
+            ensureChunksLoaded(null);
+        }
         for (final StoredSubLevelChunk chunk : this.chunks.values()) {
             final int chunkX = chunk.pos().x;
             final int chunkZ = chunk.pos().z;

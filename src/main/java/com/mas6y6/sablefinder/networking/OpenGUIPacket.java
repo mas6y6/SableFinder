@@ -1,9 +1,8 @@
 package com.mas6y6.sablefinder.networking;
 
 import com.mas6y6.sablefinder.SableFinder;
-import com.mas6y6.sablefinder.client.SableFinderScreen;
+import com.mas6y6.sablefinder.client.ClientPayloadHandler;
 import io.netty.buffer.ByteBuf;
-import net.minecraft.client.Minecraft;
 import net.minecraft.core.UUIDUtil;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.codec.ByteBufCodecs;
@@ -36,7 +35,7 @@ public record OpenGUIPacket(CompoundTag sableContraptions, Optional<UUID> select
 
     public static void handleClient(OpenGUIPacket customPacketPayload, IPayloadContext iPayloadContext) {
         iPayloadContext.enqueueWork(() -> {
-            Minecraft.getInstance().setScreen(new SableFinderScreen(customPacketPayload.sableContraptions, customPacketPayload.selectedContraptionID));
+            ClientPayloadHandler.openGUI(customPacketPayload.sableContraptions, customPacketPayload.selectedContraptionID);
         });
     }
 }

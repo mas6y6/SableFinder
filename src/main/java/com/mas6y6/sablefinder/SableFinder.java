@@ -31,8 +31,6 @@ public class SableFinder {
     public void onPacketRegister(RegisterPayloadHandlersEvent event) {
         var payloadregister = event.registrar("1").optional();
         Networking.registerPayloadHandlers(payloadregister);
-
-
     }
 
     private void onCommandRegister(RegisterCommandsEvent event) {
