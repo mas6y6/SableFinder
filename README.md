@@ -1,25 +1,15 @@
+![banner](https://cdn.modrinth.com/data/eLXayhCe/images/d8f59f2f855c16309cede5a4b7de77b288a50c80.png)
 
-Installation information
-=======
+# sableFinder
 
-This template repository can be directly cloned to get you started with a new
-mod. Simply create a new repository cloned from this one, by following the
-instructions provided by [GitHub](https://docs.github.com/en/repositories/creating-and-managing-repositories/creating-a-repository-from-a-template).
+**Required on the server. Clients must install the mod and [owo-lib] to access its features.**
 
-Once you have your clone, simply open the repository in the IDE of your choice. The usual recommendation for an IDE is either IntelliJ IDEA or Eclipse.
+SableFinder is a utlity mod for [sable](https://modrinth.com/mod/sable) that allows you to find contraptions anywhere in the world!
 
-If at any point you are missing libraries in your IDE, or you've run into problems you can
-run `gradlew --refresh-dependencies` to refresh the local cache. `gradlew clean` to reset everything 
-{this does not affect your code} and then start the process again.
+This mod is especially useful for create mod servers since its very hard to find contraptions with the built in sable commands.
 
-Mapping Names:
-============
-By default, the MDK is configured to use the official mapping names from Mojang for methods and fields 
-in the Minecraft codebase. These names are covered by a specific license. All modders should be aware of this
-license. For the latest license text, refer to the mapping file itself, or the reference copy here:
-https://github.com/NeoForged/NeoForm/blob/main/Mojang.md
+### Made for Project Crowbar!
 
-Additional Resources: 
-==========
-Community Documentation: https://docs.neoforged.net/  
-NeoForged Discord: https://discord.neoforged.net/
+Developed with the Project Crowbar community to make contraption management easier and less of a hassle.
+
+[Join the server!](https://projectcrowbar.com/)
