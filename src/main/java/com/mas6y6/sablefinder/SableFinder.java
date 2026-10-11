@@ -2,7 +2,6 @@ package com.mas6y6.sablefinder;
 
 import com.mas6y6.sablefinder.config.ConfigServer;
 import com.mas6y6.sablefinder.networking.Networking;
-import net.minecraft.client.gui.components.toasts.SystemToast;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
@@ -21,7 +20,6 @@ import net.neoforged.fml.ModContainer;
 public class SableFinder {
     public static final String MODID = "sablefinder";
     public static final Logger LOGGER = LogUtils.getLogger();
-    public static final SystemToast.SystemToastId SYSTEM_TOAST_ID = new SystemToast.SystemToastId();
 
     public SableFinder(IEventBus modEventBus, ModContainer modContainer) {
         modContainer.registerConfig(ModConfig.Type.SERVER, ConfigServer.SPEC);

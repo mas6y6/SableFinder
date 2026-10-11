@@ -49,5 +49,11 @@ public class Networking {
                 DeleteContraptionPacket.STREAM_CODEC,
                 DeleteContraptionPacket::handleServer
         );
+
+        payloadregister.playToClient(
+                ClientMessagePacket.TYPE,
+                ClientMessagePacket.STREAM_CODEC,
+                ClientMessagePacket::handleClient
+        );
     }
 }

@@ -1,7 +1,7 @@
 package com.mas6y6.sablefinder.sable;
 
 import com.mas6y6.sablefinder.SableFinder;
-import com.mas6y6.sablefinder.interfaces.Toastable;
+import com.mas6y6.sablefinder.networking.ClientMessagePacket;
 import dev.ryanhcode.sable.api.sublevel.ServerSubLevelContainer;
 import dev.ryanhcode.sable.sublevel.SubLevel;
 import dev.ryanhcode.sable.sublevel.storage.HoldingSubLevel;
@@ -18,6 +18,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
+import net.neoforged.neoforge.network.PacketDistributor;
 
 import java.io.File;
 import java.io.IOException;
@@ -93,21 +94,14 @@ public class SableUtils {
             }
 
             if (deleteFromContainer(container, uuid)) {
-                showDeleteSuccess(server);
                 return true;
             }
         }
 
         SableFinder.LOGGER.warn("Unable to delete contraption {}: it is not loaded and no stored data was found", uuid);
-        showDeleteFailure(server);
         return false;
     }
 
-    /**
-     * Attempts to delete a contraption from a single dimension's container.
-     *
-     * @return whether the contraption was present (and was deleted) in this container
-     */
     private static boolean deleteFromContainer(ServerSubLevelContainer container, UUID uuid) {
         // Fast path: the contraption is loaded, so it can be removed directly.
         SubLevel subLevel = container.getSubLevel(uuid);
@@ -203,18 +197,6 @@ public class SableUtils {
         }
 
         return null;
-    }
-
-    private static void showDeleteSuccess(MinecraftServer server) {
-        if (server instanceof Toastable toastable) {
-            toastable.sableFinder$showToast(Component.literal("Contraption Deleted"), Component.literal("Contraption Successfully deleted!"));
-        }
-    }
-
-    private static void showDeleteFailure(MinecraftServer server) {
-        if (server instanceof Toastable toastable) {
-            toastable.sableFinder$showToast(Component.literal("Failed to delete"), Component.literal("An error occurred while deleting the contraption. Check server logs for more info."));
-        }
     }
 
     private static GlobalSavedSubLevelPointer findSubLevelPointer(ServerSubLevelContainer container, UUID uuid) {

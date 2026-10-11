@@ -5,11 +5,13 @@ import com.mas6y6.sablefinder.client.SableContraptionClient;
 import com.mas6y6.sablefinder.sable.SableUtils;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.core.UUIDUtil;
+import net.minecraft.network.chat.Component;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
+import net.neoforged.neoforge.network.PacketDistributor;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 import org.jetbrains.annotations.NotNull;
 
@@ -34,7 +36,11 @@ public record DeleteContraptionPacket(UUID contraptionUUID) implements CustomPac
     public static void handleServer(DeleteContraptionPacket packet, IPayloadContext iPayloadContext) {
         iPayloadContext.enqueueWork(() -> {
             if (iPayloadContext.player() instanceof ServerPlayer player ) {
-                SableUtils.deleteContraption(player.server, packet.contraptionUUID());
+                if (SableUtils.deleteContraption(player.server, packet.contraptionUUID())) {
+                    PacketDistributor.sendToPlayer(player, new ClientMessagePacket(Component.literal("Contraption Deleted"), Component.literal("Contraption Successfully deleted!")));
+                } else {
+                    PacketDistributor.sendToPlayer(player, new ClientMessagePacket(Component.literal("Failed to delete contraption"), Component.literal("An error occurred while deleting the contraption. Check server logs.")));
+                }
             }
         });
     }

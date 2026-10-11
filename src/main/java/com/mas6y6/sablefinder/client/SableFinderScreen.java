@@ -28,9 +28,6 @@ import org.joml.Vector3d;
 import org.lwjgl.glfw.GLFW;
 
 import java.awt.*;
-import java.awt.datatransfer.Clipboard;
-import java.awt.datatransfer.StringSelection;
-import java.awt.datatransfer.Transferable;
 import java.util.*;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -404,7 +401,7 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
                     entry -> entry.uuid().equals(selectedContraptionID)
             )
                     ? selectedContraptionID
-                    : contraptions.get(0).uuid();
+                    : contraptions.getFirst().uuid();
 
             selectContraption(initialUuid);
         } else {
@@ -701,7 +698,7 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
                         )) {
                             selectContraption(selectedUuid);
                         } else if (!contraptions.isEmpty()) {
-                            selectContraption(contraptions.get(0).uuid());
+                            selectContraption(contraptions.getFirst().uuid());
                         } else {
                             selectedUuid = null;
                             updateContraptionSelection();
@@ -873,9 +870,11 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
         String name = data.displayName() != null
                 && !data.displayName().isEmpty()
                 ? data.displayName()
-                : "Contraption (" + data.uuid().toString().substring(0, 8) + ")";
+                : "Untitled Contraption (" + data.uuid().toString().substring(0, 8) + ")";
 
         FlowLayout headerCard = createSectionCard("§e" + name);
+
+        headerCard.child(createCopyButton(name));
 
         FlowLayout uuidRow = Containers.verticalFlow(
                 Sizing.fill(100),
@@ -893,6 +892,8 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
                 )
         );
 
+        uuidRow.child(createCopyButton(data.uuid().toString()));
+
         uuidRow.gap(2);
 
         uuidRow.child(Components.label(
@@ -907,6 +908,8 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
                 )
         );
 
+        uuidRow.child(createCopyButton(data.dimension().location().toString()));
+
         uuidRow.gap(2);
 
         uuidRow.child(Components.label(
@@ -919,20 +922,6 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
                 )
         );
 
-        ButtonComponent copyUuidButton = (ButtonComponent) Components.button(
-                Component.literal("Copy UUID"),
-                button -> {
-                    if (this.minecraft != null) {
-                        this.minecraft.keyboardHandler.setClipboard(
-                                data.uuid().toString()
-                        );
-                    }
-                }
-        ).tooltip(Component.literal(data.uuid().toString()));
-        copyUuidButton.horizontalSizing(Sizing.fill(100));
-        copyUuidButton.verticalSizing(Sizing.fixed(20));
-
-        uuidRow.child(copyUuidButton);
         headerCard.child(uuidRow);
 
         detailsContent.child(headerCard);
@@ -961,7 +950,7 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
         teleport.verticalSizing(Sizing.fixed(20));
         actionsCard.child(teleport);
 
-        ButtonComponent copycoords = Components.button(
+        ButtonComponent copyCoords = Components.button(
                 Component.literal("Copy Coords"),
                 button -> {
                     button.setMessage(Component.literal("Copied!"));
@@ -977,10 +966,10 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
                             );
                 }
         );
-        copycoords.horizontalSizing(Sizing.fill(100));
-        copycoords.verticalSizing(Sizing.fixed(20));
+        copyCoords.horizontalSizing(Sizing.fill(100));
+        copyCoords.verticalSizing(Sizing.fixed(20));
 
-        actionsCard.child(copycoords);
+        actionsCard.child(copyCoords);
 
         AtomicBoolean confirmDelete = new AtomicBoolean(false);
 
@@ -1014,7 +1003,7 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
             infoCard.child(createDataRow(
                     "Position",
                     Component.literal(String.format(
-                            Locale.ROOT, "%.2f, %.2f, %.2f",
+                            Locale.ROOT, "§c%.2f, §a%.2f, §b%.2f",
                             position.x, position.y, position.z
                     ))
             ));
@@ -1147,6 +1136,13 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
                 dependencyRow.child(Components.label(
                         Component.literal("§f" + dependency)
                 ));
+                ButtonComponent button = Components.button(
+                        Component.literal("Open"),
+                        button1 -> selectContraption(dependency)
+                );
+                button.horizontalSizing(Sizing.fixed(30));
+                button.verticalSizing(Sizing.fixed(10));
+                dependencyRow.child(button);
 
                 dependenciesCard.child(dependencyRow);
             }
@@ -1211,7 +1207,41 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
                 ))
         );
 
+        if (components.length > 0) {
+            StringBuilder copyText = new StringBuilder();
+
+            for (Component component : components) {
+                if (!copyText.isEmpty()) {
+                    copyText.append(' ');
+                }
+
+                copyText.append(component.getString());
+            }
+
+            row.child(createCopyButton(
+                    copyText.toString().replaceAll("§.", "")
+            ));
+        }
+
         return row;
+    }
+
+    private ButtonComponent createCopyButton(String text) {
+        ButtonComponent copy = (ButtonComponent) Components.button(
+                Component.literal("Copy"),
+                button -> {
+                    button.setMessage(Component.literal("Copied"));
+
+                    if (this.minecraft != null) {
+                        this.minecraft.keyboardHandler.setClipboard(text);
+                    }
+                }
+        ).tooltip(Component.literal(text));
+
+        copy.horizontalSizing(Sizing.fixed(30));
+        copy.verticalSizing(Sizing.fixed(10));
+
+        return copy;
     }
 
     public record ContraptionEntry(UUID uuid, String name, boolean nameEmpty, String dimension) {}

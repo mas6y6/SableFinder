@@ -3,6 +3,7 @@ package com.mas6y6.sablefinder;
 import com.mas6y6.sablefinder.config.ConfigClient;
 import com.mas6y6.sablefinder.config.ConfigServer;
 import com.mojang.logging.LogUtils;
+import net.minecraft.client.gui.components.toasts.SystemToast;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
@@ -13,6 +14,7 @@ import org.slf4j.Logger;
 @Mod(value = SableFinder.MODID, dist = Dist.CLIENT)
 public class SableFinderClient {
     public static final Logger LOGGER = LogUtils.getLogger();
+    public static final SystemToast.SystemToastId SYSTEM_TOAST_ID = new SystemToast.SystemToastId();
 
     public SableFinderClient(IEventBus modEventBus, ModContainer modContainer) {
         modContainer.registerConfig(ModConfig.Type.CLIENT, ConfigClient.SPEC);
