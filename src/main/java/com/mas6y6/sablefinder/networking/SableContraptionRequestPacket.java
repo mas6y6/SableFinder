@@ -34,7 +34,7 @@ public record SableContraptionRequestPacket(UUID contraptionId) implements Custo
         iPayloadContext.enqueueWork(() -> {
             if (iPayloadContext.player() instanceof ServerPlayer player) {
                 final MinecraftServer server = player.serverLevel().getServer();
-                final SableContraptionData contraption = SableUtils.getContraption(server, packet.contraptionId());
+                final SableContraptionData contraption = SableUtils.getContraption(server, packet.contraptionId(), false);
                 if (contraption != null) {
                     iPayloadContext.reply(new GetSableContraptionPacket(contraption));
                 }

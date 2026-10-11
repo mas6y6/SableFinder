@@ -43,5 +43,11 @@ public class Networking {
                 SableContraptionListRequestPacket.STREAM_CODEC,
                 SableContraptionListRequestPacket::handleServer
         );
+
+        payloadregister.playToServer(
+                DeleteContraptionPacket.TYPE,
+                DeleteContraptionPacket.STREAM_CODEC,
+                DeleteContraptionPacket::handleServer
+        );
     }
 }

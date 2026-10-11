@@ -55,6 +55,11 @@ public class SFCommands {
             return 0;
         }
 
+        if (!context.getSource().hasPermission(3)) {
+            context.getSource().sendFailure(Component.literal("You do not have permission to use this command."));
+            return 0;
+        }
+
         try {
             var entity = context.getSource().getEntityOrException();
             if (entity instanceof ServerPlayer player) {
@@ -95,6 +100,11 @@ public class SFCommands {
     private static int executeOPENGUI(CommandContext<CommandSourceStack> context) {
         if (!context.getSource().isPlayer()) {
             context.getSource().sendFailure(Component.literal("You must be a player to use this command."));
+            return 0;
+        }
+
+        if (!context.getSource().hasPermission(3)) {
+            context.getSource().sendFailure(Component.literal("You do not have permission to use this command."));
             return 0;
         }
 

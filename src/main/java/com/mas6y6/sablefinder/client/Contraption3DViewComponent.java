@@ -292,7 +292,7 @@ public class Contraption3DViewComponent extends BaseComponent {
         for (RenderBlock block : blocks) {
             poseStack.pushPose();
             poseStack.translate(block.pos.getX(), block.pos.getY(), block.pos.getZ());
-            blockRenderer.renderSingleBlock(block.state, poseStack, context.bufferSource(), 0xF000F0, OverlayTexture.NO_OVERLAY, ModelData.EMPTY, RenderType.solid());
+            blockRenderer.renderSingleBlock(block.state, poseStack, context.bufferSource(), 0xF000F0, OverlayTexture.NO_OVERLAY, ModelData.EMPTY, null);
             poseStack.popPose();
         }
 

@@ -1,6 +1,8 @@
 package com.mas6y6.sablefinder.client;
 
+import com.mas6y6.sablefinder.networking.DeleteContraptionPacket;
 import com.mas6y6.sablefinder.sable.SableContraptionData;
+import com.mas6y6.sablefinder.utils.TagFormatter;
 import dev.ryanhcode.sable.companion.math.BoundingBox3d;
 import dev.ryanhcode.sable.companion.math.Pose3d;
 import io.wispforest.owo.ui.base.BaseOwoScreen;
@@ -8,26 +10,34 @@ import io.wispforest.owo.ui.component.ButtonComponent;
 import io.wispforest.owo.ui.component.Components;
 import io.wispforest.owo.ui.component.LabelComponent;
 import io.wispforest.owo.ui.component.TextBoxComponent;
-import io.wispforest.owo.ui.container.CollapsibleContainer;
 import io.wispforest.owo.ui.container.Containers;
 import io.wispforest.owo.ui.container.FlowLayout;
 import io.wispforest.owo.ui.container.ScrollContainer;
 import io.wispforest.owo.ui.core.*;
+import io.wispforest.owo.ui.core.Insets;
 import io.wispforest.owo.ui.util.UISounds;
+import net.minecraft.client.Minecraft;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
+import net.neoforged.neoforge.network.PacketDistributor;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.joml.Vector3d;
 import org.lwjgl.glfw.GLFW;
 
+import java.awt.*;
+import java.awt.datatransfer.Clipboard;
+import java.awt.datatransfer.StringSelection;
+import java.awt.datatransfer.Transferable;
 import java.util.*;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
 
-    private static final int COLLAPSED_SIDEBAR_WIDTH = 20;
+    private static final int COLLAPSED_SIDEBAR_WIDTH = 10;
     private static final int SCROLLBAR_RIGHT_PADDING = 8;
 
     private CompoundTag sableContraptions;
@@ -36,11 +46,16 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
     private final @Nullable UUID selectedContraptionID;
 
     private LabelComponent foundCountLabel;
+    private LabelComponent indexString;
     private TextBoxComponent searchBox;
     private String searchQuery = "";
     private FlowLayout contraptionList;
     private FlowLayout top3dContainer;
     private FlowLayout detailsContent;
+    private FlowLayout sidebar;
+    private FlowLayout sidebarTop;
+    private FlowLayout detailsPanel;
+    private ScrollContainer<FlowLayout> listScroll;
     private ButtonComponent reloadButton;
     private boolean leftSidebarCollapsed = false;
     private boolean rightSidebarCollapsed = false;
@@ -125,13 +140,14 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
 
                 if (uuid != null) {
                     String name = tag.getString("name");
+                    String dimension = tag.getString("dimension");
                     boolean nameEmpty = name.isEmpty();
 
                     if (name.isEmpty()) {
                         name = uuid.toString().substring(0, 8);
                     }
 
-                    contraptions.add(new ContraptionEntry(uuid, name, nameEmpty));
+                    contraptions.add(new ContraptionEntry(uuid, name, nameEmpty, dimension));
                 }
             }
         } else if (sableContraptions.contains(
@@ -147,6 +163,7 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
                 if (tag.hasUUID("uuid")) {
                     UUID uuid = tag.getUUID("uuid");
                     String name = tag.getString("name");
+                    String dimension = tag.getString("dimension");
                     boolean nameEmpty = name.isEmpty();
 
                     if (name.isEmpty()) {
@@ -154,7 +171,7 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
                                 + uuid.toString().substring(0, 8);
                     }
 
-                    contraptions.add(new ContraptionEntry(uuid, name, nameEmpty));
+                    contraptions.add(new ContraptionEntry(uuid, name, nameEmpty, dimension));
                 }
             }
         }
@@ -200,6 +217,12 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
 
         header.child(Components.spacer());
 
+        indexString = Components.label(
+
+                Component.literal( selectedContraptionIndex + 1 + "/" +contraptions.size())
+        );
+        header.child(indexString);
+
         foundCountLabel = Components.label(
                 Component.literal("§7Found: §f" + contraptions.size())
         );
@@ -216,15 +239,15 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
         // LEFT COLUMN: Contraption list
         // ---------------------------------------------------------
 
-        CollapsibleContainer sidebar = Containers.collapsible(
-                Sizing.fill(25),
-                Sizing.fill(100),
-                Component.literal("§bContraptions"),
-                !leftSidebarCollapsed
+        sidebar = Containers.verticalFlow(
+                leftSidebarCollapsed
+                        ? Sizing.fixed(COLLAPSED_SIDEBAR_WIDTH)
+                        : Sizing.fill(25),
+                Sizing.fill(100)
         );
         sidebar.gap(3);
 
-        searchBox = Components.textBox(Sizing.fill(100));
+        searchBox = Components.textBox(Sizing.expand());
         searchBox.setHint(Component.literal("§7Search..."));
         searchBox.setMaxLength(64);
         searchBox.text(searchQuery);
@@ -232,30 +255,42 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
             searchQuery = value;
             rebuildContraptionList();
         });
-        searchBox.margins(Insets.bottom(3));
+
+        sidebarTop = Containers.horizontalFlow(
+                Sizing.fill(100),
+                Sizing.content()
+        );
+        sidebarTop.gap(2);
+        sidebarTop.margins(Insets.bottom(3));
+
+        ButtonComponent collapseButton = Components.button(
+                Component.literal("<"),
+                button -> toggleLeftSidebar()
+        );
+        collapseButton.horizontalSizing(Sizing.fixed(10));
+        collapseButton.verticalSizing(Sizing.fill(11));
+        sidebarTop.child(collapseButton);
+        sidebarTop.child(searchBox);
 
         contraptionList = Containers.verticalFlow(
                 Sizing.fill(100),
                 Sizing.content()
         );
-        contraptionList.gap(2);
         contraptionList.padding(Insets.right(SCROLLBAR_RIGHT_PADDING));
 
         rebuildContraptionList();
 
-        ScrollContainer<FlowLayout> listScroll =
-                Containers.verticalScroll(
-                        Sizing.fill(100),
-                        Sizing.expand(),
-                        contraptionList
-                );
+        listScroll = Containers.verticalScroll(
+                Sizing.fill(100),
+                Sizing.expand(),
+                contraptionList
+        );
 
         listScroll
                 .scrollbar(ScrollContainer.Scrollbar.vanillaFlat())
                 .scrollbarThiccness(4);
 
-        sidebar.child(searchBox);
-        sidebar.child(listScroll);
+        updateLeftSidebar();
 
         // ---------------------------------------------------------
         // MIDDLE COLUMN: 3D preview
@@ -282,8 +317,10 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
         // RIGHT COLUMN: Scrollable details
         // ---------------------------------------------------------
 
-        FlowLayout detailsPanel = Containers.verticalFlow(
-                rightSidebarCollapsed ? Sizing.fixed(COLLAPSED_SIDEBAR_WIDTH) : Sizing.fill(38),
+        detailsPanel = Containers.verticalFlow(
+                rightSidebarCollapsed
+                        ? Sizing.fixed(COLLAPSED_SIDEBAR_WIDTH)
+                        : (leftSidebarCollapsed ? Sizing.fill(53) : Sizing.fill(38)),
                 Sizing.fill(100)
         );
         detailsPanel.gap(3);
@@ -375,6 +412,43 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
         }
     }
 
+    private void toggleLeftSidebar() {
+        leftSidebarCollapsed = !leftSidebarCollapsed;
+        updateLeftSidebar();
+    }
+
+    private void updateLeftSidebar() {
+        if (sidebar == null) return;
+
+        sidebar.clearChildren();
+        sidebar.horizontalSizing(
+                leftSidebarCollapsed
+                        ? Sizing.fixed(COLLAPSED_SIDEBAR_WIDTH)
+                        : Sizing.fill(25)
+        );
+
+        if (detailsPanel != null) {
+            detailsPanel.horizontalSizing(
+                    rightSidebarCollapsed
+                            ? Sizing.fixed(COLLAPSED_SIDEBAR_WIDTH)
+                            : (leftSidebarCollapsed ? Sizing.fill(53) : Sizing.fill(38))
+            );
+        }
+
+        if (leftSidebarCollapsed) {
+            ButtonComponent expandButton = Components.button(
+                    Component.literal(">"),
+                    button -> toggleLeftSidebar()
+            );
+            expandButton.horizontalSizing(Sizing.fixed(10));
+            expandButton.verticalSizing(Sizing.fill(100));
+            sidebar.child(expandButton);
+        } else {
+            sidebar.child(sidebarTop);
+            sidebar.child(listScroll);
+        }
+    }
+
     // -------------------------------------------------------------
     // CONTRAPTION LIST
     // -------------------------------------------------------------
@@ -421,6 +495,12 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
                             .append(Component.literal(
                                     "\n§7UUID: " + entry.uuid()
                             ))
+                            .append(Component.literal(
+                                    "\n§7Dimension: "
+                                            + (entry.dimension() != null && !entry.dimension().isEmpty()
+                                            ? entry.dimension()
+                                            : "unknown")
+                            ))
             );
 
             String displayName = entry.name().length() > 19
@@ -438,6 +518,12 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
                             "§8" + entry.uuid().toString().substring(0, 15) + "..."
                     )
             ));
+
+            if (entry.dimension() != null && !entry.dimension().isEmpty()) {
+                item.child(Components.label(
+                        Component.literal("§8" + entry.dimension())
+                ));
+            }
 
             item.mouseDown().subscribe((mouseX, mouseY, button) -> {
                 if (button == 0) {
@@ -469,7 +555,8 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
 
         return contraptions.stream()
                 .filter(entry -> entry.name().toLowerCase(Locale.ROOT).contains(query)
-                        || entry.uuid().toString().toLowerCase(Locale.ROOT).contains(query))
+                        || entry.uuid().toString().toLowerCase(Locale.ROOT).contains(query)
+                        || (entry.dimension() != null && entry.dimension().toLowerCase(Locale.ROOT).contains(query)))
                 .toList();
     }
 
@@ -527,6 +614,8 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
     private void selectContraption(UUID uuid) {
         selectedUuid = uuid;
         selectedContraptionIndex = indexOfContraption(uuid);
+
+        indexString.text(Component.literal( selectedContraptionIndex + 1 + "/" +contraptions.size()));
 
         updateContraptionSelection();
 
@@ -804,6 +893,32 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
                 )
         );
 
+        uuidRow.gap(2);
+
+        uuidRow.child(Components.label(
+                Component.literal("§7Dimension:")
+        ));
+
+        uuidRow.child(
+                Components.label(
+                        Component.literal("§f" + (data.dimension() != null
+                                ? data.dimension().location().toString()
+                                : "unknown"))
+                )
+        );
+
+        uuidRow.gap(2);
+
+        uuidRow.child(Components.label(
+                Component.literal("§7Loaded:")
+        ));
+
+        uuidRow.child(
+                Components.label(
+                        Component.literal(data.isLoaded() ? "§aTrue" : "§cFalse")
+                )
+        );
+
         ButtonComponent copyUuidButton = (ButtonComponent) Components.button(
                 Component.literal("Copy UUID"),
                 button -> {
@@ -828,15 +943,58 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
 
         ButtonComponent teleport = Components.button(
                 Component.literal("Teleport to"),
-                button -> {}
+                button -> {
+                    Minecraft minecraft = Minecraft.getInstance();
+                    minecraft.setScreen(null);
+
+                    Vector3d position = data.pose().position();
+
+                    if (minecraft.getConnection() != null) {
+                        minecraft.getConnection().sendCommand("execute in " + data.dimension().location() + " run tp @s " + String.format(
+                                Locale.ROOT, "%.2f %.2f %.2f",
+                                position.x, position.y, position.z
+                        ));
+                    }
+                }
         );
         teleport.horizontalSizing(Sizing.fill(100));
         teleport.verticalSizing(Sizing.fixed(20));
         actionsCard.child(teleport);
 
+        ButtonComponent copycoords = Components.button(
+                Component.literal("Copy Coords"),
+                button -> {
+                    button.setMessage(Component.literal("Copied!"));
+
+                    Vector3d position = data.pose().position();
+
+                    Minecraft.getInstance().keyboardHandler
+                            .setClipboard(
+                                    String.format(
+                                            Locale.ROOT, "%.2f %.2f %.2f",
+                                            position.x, position.y, position.z
+                                    )
+                            );
+                }
+        );
+        copycoords.horizontalSizing(Sizing.fill(100));
+        copycoords.verticalSizing(Sizing.fixed(20));
+
+        actionsCard.child(copycoords);
+
+        AtomicBoolean confirmDelete = new AtomicBoolean(false);
+
         ButtonComponent deleteContraption = Components.button(
                 Component.literal("§cDelete"),
-                button -> {}
+                button -> {
+                    if (confirmDelete.get()) {
+                        PacketDistributor.sendToServer(new DeleteContraptionPacket(data.uuid()));
+                        reloadContraptions();
+                    } else {
+                        confirmDelete.set(true);
+                        button.setMessage(Component.literal("§cYou Sure?"));
+                    }
+                }
         );
         deleteContraption.horizontalSizing(Sizing.fill(100));
         deleteContraption.verticalSizing(Sizing.fixed(20));
@@ -995,6 +1153,25 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
 
             detailsContent.child(dependenciesCard);
         }
+
+        // Debugging
+
+        FlowLayout debugActionsCard = createSectionCard("§eDebugging Actions");
+
+        ButtonComponent copyRawSableData = Components.button(
+                Component.literal("Copy Raw Sable Data"),
+                button -> {
+                    button.setMessage(Component.literal("Copied!"));
+
+                    Minecraft.getInstance().keyboardHandler
+                            .setClipboard(TagFormatter.format(data.fullTag()));
+                }
+        );
+        copyRawSableData.horizontalSizing(Sizing.fill(100));
+        copyRawSableData.verticalSizing(Sizing.fixed(20));
+        debugActionsCard.child(copyRawSableData);
+
+        detailsContent.child(debugActionsCard);
     }
 
     // -------------------------------------------------------------
@@ -1037,7 +1214,7 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
         return row;
     }
 
-    public record ContraptionEntry(UUID uuid, String name, boolean nameEmpty) {}
+    public record ContraptionEntry(UUID uuid, String name, boolean nameEmpty, String dimension) {}
 
     public record ContraptionItem(
             UUID uuid,

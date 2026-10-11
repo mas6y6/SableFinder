@@ -47,6 +47,8 @@ public class SableContraptionData {
     private final List<UUID> dependencies;
     private final CompoundTag userData;
     private final CompoundTag fullTag;
+    private final boolean isloaded;
+    private final ResourceKey<Level> dimension;
 
     private static final StreamCodec<ByteBuf, Vector3d> VECTOR_3D = StreamCodec.of(
             (buf, vector) -> {
@@ -125,6 +127,8 @@ public class SableContraptionData {
 
     private static final StreamCodec<ByteBuf, ResourceKey<Biome>> BIOME_KEY = ResourceKey.streamCodec(Registries.BIOME);
 
+    private static final StreamCodec<ByteBuf, ResourceKey<Level>> DIMENSION_KEY = ResourceKey.streamCodec(Registries.DIMENSION);
+
     public static final StreamCodec<ByteBuf, SableContraptionData> STREAM_CODEC = StreamCodec.of(
             (buf, data) -> {
                 UUIDUtil.STREAM_CODEC.encode(buf, data.uuid);
@@ -142,6 +146,8 @@ public class SableContraptionData {
                 UUID_LIST.encode(buf, data.dependencies);
                 NULLABLE_COMPOUND_TAG.encode(buf, data.userData);
                 ByteBufCodecs.TRUSTED_COMPOUND_TAG.encode(buf, data.fullTag);
+                buf.writeBoolean(data.isloaded);
+                DIMENSION_KEY.encode(buf, data.dimension);
             },
             buf -> new SableContraptionData(
                     UUIDUtil.STREAM_CODEC.decode(buf),
@@ -158,7 +164,9 @@ public class SableContraptionData {
                     NULLABLE_VECTOR_3D.decode(buf),
                     UUID_LIST.decode(buf),
                     NULLABLE_COMPOUND_TAG.decode(buf),
-                    ByteBufCodecs.TRUSTED_COMPOUND_TAG.decode(buf)
+                    ByteBufCodecs.TRUSTED_COMPOUND_TAG.decode(buf),
+                    buf.readBoolean(),
+                    DIMENSION_KEY.decode(buf)
             )
     );
 
@@ -168,7 +176,7 @@ public class SableContraptionData {
                                  final int plotX, final int plotZ, final int logSize, final ResourceKey<Biome> biome,
                                  final int dataVersion, final String displayName, final Vector3d linearVelocity,
                                  final Vector3d angularVelocity, final List<UUID> dependencies, final CompoundTag userData,
-                                 final CompoundTag fullTag) {
+                                 final CompoundTag fullTag, boolean isloaded, final ResourceKey<Level> dimension) {
         this.uuid = uuid;
         this.pose = pose;
         this.bounds = bounds;
@@ -184,6 +192,8 @@ public class SableContraptionData {
         this.dependencies = dependencies;
         this.userData = userData;
         this.fullTag = fullTag;
+        this.isloaded = isloaded;
+        this.dimension = dimension;
     }
 
     private static Vector3d readOptionalVector3d(final CompoundTag tag, final String key) {
@@ -194,7 +204,7 @@ public class SableContraptionData {
         return new Vector3d(vector.getDouble("x"), vector.getDouble("y"), vector.getDouble("z"));
     }
 
-    public static SableContraptionData parse(final SubLevelData data, final ServerLevel level) {
+    public static SableContraptionData parse(final SubLevelData data, final ServerLevel level, boolean isloaded) {
         final CompoundTag fullTag = data.fullTag();
         final CompoundTag plot = fullTag.getCompound("plot");
         final CompoundTag chunksTag = plot.getCompound("chunks");
@@ -216,7 +226,9 @@ public class SableContraptionData {
                 readOptionalVector3d(fullTag, "angular_velocity"),
                 data.dependencies(),
                 fullTag.contains("user_data") ? fullTag.getCompound("user_data") : null,
-                fullTag
+                fullTag,
+                isloaded,
+                level.dimension()
         );
 
         for (final String key : chunksTag.getAllKeys()) {
@@ -314,6 +326,14 @@ public class SableContraptionData {
 
     public CompoundTag fullTag() {
         return this.fullTag;
+    }
+
+    public boolean isLoaded() {
+        return this.isloaded;
+    }
+
+    public ResourceKey<Level> dimension() {
+        return this.dimension;
     }
 
     public int chunkCount() {
