@@ -2,6 +2,7 @@ package com.mas6y6.sablefinder.networking;
 
 import com.mas6y6.sablefinder.SableFinder;
 import io.netty.buffer.ByteBuf;
+import net.minecraft.core.UUIDUtil;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
@@ -10,14 +11,19 @@ import net.neoforged.neoforge.network.handling.IPayloadContext;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
 
-public record CheckExistencePacket(boolean isServerHasMod, boolean isClientHasMod) implements CustomPacketPayload {
+/**
+ * Performs the mod-presence handshake in both directions. The server sends one to ask whether the
+ * client has the mod; the client answers with the same packet carrying {@code isClientHasMod}.
+ */
+public record CheckExistencePacket(UUID requestId, boolean isServerHasMod, boolean isClientHasMod)
+        implements RequestPayload<CheckExistencePacket>, ResponsePayload {
     public static final CustomPacketPayload.Type<CheckExistencePacket> TYPE =
             new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath(SableFinder.MODID, "check_existence"));
 
     public static final StreamCodec<ByteBuf, CheckExistencePacket> STREAM_CODEC = StreamCodec.composite(
+            UUIDUtil.STREAM_CODEC,
+            CheckExistencePacket::requestId,
             ByteBufCodecs.BOOL,
             CheckExistencePacket::isServerHasMod,
             ByteBufCodecs.BOOL,
@@ -25,34 +31,24 @@ public record CheckExistencePacket(boolean isServerHasMod, boolean isClientHasMo
             CheckExistencePacket::new
     );
 
-    private static final ConcurrentHashMap<UUID, CompletableFuture<Boolean>> PENDING_RESPONSES = new ConcurrentHashMap<>();
-
-    public static CompletableFuture<Boolean> request(UUID playerId) {
-        CompletableFuture<Boolean> future = new CompletableFuture<>();
-        PENDING_RESPONSES.put(playerId, future);
-        return future;
-    }
-
-    public static void removePending(UUID playerId) {
-        PENDING_RESPONSES.remove(playerId);
-    }
-
     @Override
     public @NotNull CustomPacketPayload.Type<? extends CustomPacketPayload> type() {
         return TYPE;
     }
 
+    @Override
+    public CustomPacketPayload.Type<CheckExistencePacket> responseType() {
+        return TYPE;
+    }
+
     public static void handleServer(CheckExistencePacket packet, IPayloadContext iPayloadContext) {
-        CompletableFuture<Boolean> future = PENDING_RESPONSES.remove(iPayloadContext.player().getUUID());
-        if (future != null) {
-            future.complete(packet.isClientHasMod());
-        }
+        PacketRequests.complete(packet);
     }
 
     public static void handleClient(CheckExistencePacket packet, IPayloadContext iPayloadContext) {
         iPayloadContext.enqueueWork(() -> {
             if (packet.isServerHasMod()) {
-                iPayloadContext.reply(new CheckExistencePacket(true, true));
+                iPayloadContext.reply(new CheckExistencePacket(packet.requestId(), true, true));
             }
         });
     }

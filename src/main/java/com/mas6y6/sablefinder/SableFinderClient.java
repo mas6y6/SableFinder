@@ -1,15 +1,22 @@
 package com.mas6y6.sablefinder;
 
+import com.mas6y6.sablefinder.Keybinds;
 import com.mas6y6.sablefinder.config.ConfigClient;
-import com.mas6y6.sablefinder.config.ConfigServer;
+import com.mas6y6.sablefinder.networking.PacketRequests;
 import com.mojang.logging.LogUtils;
 import net.minecraft.client.gui.components.toasts.SystemToast;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.IEventBus;
+import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.config.ModConfig;
+import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
+import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
+import net.neoforged.neoforge.common.NeoForge;
 import org.slf4j.Logger;
+
+import java.io.IOException;
 
 @Mod(value = SableFinder.MODID, dist = Dist.CLIENT)
 public class SableFinderClient {
@@ -18,5 +25,24 @@ public class SableFinderClient {
 
     public SableFinderClient(IEventBus modEventBus, ModContainer modContainer) {
         modContainer.registerConfig(ModConfig.Type.CLIENT, ConfigClient.SPEC);
+        modEventBus.register(this);
+        NeoForge.EVENT_BUS.addListener(this::onLoggingOut);
+    }
+
+    /**
+     * Keybindings must be registered here (mod-lifecycle event, fires before
+     * any screen exists). The keybind {@link KeyMapping}s are actually used by
+     * {@link com.mas6y6.sablefinder.client.SableFinderScreen#keyPressed},
+     * which matches against them so the in-browser shortcuts follow rebinds.
+     */
+    @SubscribeEvent
+    public void registerKeybinds(RegisterKeyMappingsEvent event) {
+        event.register(Keybinds.REFRESH_KEY.get());
+        event.register(Keybinds.GO_TO_NEXT_CONTRAPTION_KEY.get());
+        event.register(Keybinds.GO_TO_PREVIOUS_CONTRAPTION_KEY.get());
+    }
+
+    private void onLoggingOut(ClientPlayerNetworkEvent.LoggingOut event) {
+        PacketRequests.failAll(new IOException("Client disconnected"));
     }
 }

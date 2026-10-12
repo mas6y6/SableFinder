@@ -2,6 +2,7 @@ package com.mas6y6.sablefinder;
 
 import com.mas6y6.sablefinder.networking.CheckExistencePacket;
 import com.mas6y6.sablefinder.networking.OpenGUIPacket;
+import com.mas6y6.sablefinder.networking.PacketRequests;
 import com.mas6y6.sablefinder.sable.SableUtils;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
@@ -50,12 +51,12 @@ public class SFCommands {
 
     private static int executeVIEWUUID(CommandContext<CommandSourceStack> context) {
         if (!context.getSource().isPlayer()) {
-            context.getSource().sendFailure(Component.literal("You must be a player to use this command."));
+            context.getSource().sendFailure(Component.translatable("sablefinder.message.not_player"));
             return 0;
         }
 
         if (!context.getSource().hasPermission(3)) {
-            context.getSource().sendFailure(Component.literal("You do not have permission to use this command."));
+            context.getSource().sendFailure(Component.translatable("sablefinder.message.no_permission"));
             return 0;
         }
 
@@ -66,7 +67,7 @@ public class SFCommands {
                 CompletableFuture.supplyAsync(() -> awaitClientResponse(player))
                         .thenAcceptAsync(clientHasMod -> {
                             if (!clientHasMod) {
-                                context.getSource().sendFailure(Component.literal("The client does not have the SableFinder mod installed."));
+                                context.getSource().sendFailure(Component.translatable("sablefinder.message.client_mod_missing"));
                                 return;
                             }
 
@@ -74,7 +75,7 @@ public class SFCommands {
                             try {
                                 selectedUuid = Optional.of(UUID.fromString(context.getArgument("uuid", String.class)));
                             } catch (Exception e) {
-                                context.getSource().sendFailure(Component.literal("Must be a valid UUID"));
+                                context.getSource().sendFailure(Component.translatable("sablefinder.message.invalid_uuid"));
                                 return;
                             }
 
@@ -82,7 +83,7 @@ public class SFCommands {
                                     .whenComplete((tag, error) -> {
                                         if (error != null) {
                                             SableFinder.LOGGER.error("An error occurred while loading contraptions", error);
-                                            server.execute(() -> context.getSource().sendFailure(Component.literal("An error occurred while loading contraptions: " + error.getMessage())));
+                                            server.execute(() -> context.getSource().sendFailure(Component.translatable("sablefinder.message.load_error", error.getMessage())));
                                             return;
                                         }
 
@@ -90,11 +91,11 @@ public class SFCommands {
                                     });
                         }, server::execute);
             } else {
-                context.getSource().sendFailure(Component.literal("This command can only be executed by a player."));
+                context.getSource().sendFailure(Component.translatable("sablefinder.message.not_player"));
                 return 0;
             }
         } catch (Exception e) {
-            context.getSource().sendFailure(Component.literal("An error occurred while executing the SableFinder command: " + e.getMessage()));
+            context.getSource().sendFailure(Component.translatable("sablefinder.message.command_error", e.getMessage()));
             SableFinder.LOGGER.error("An error occurred while executing the SableFinder command", e);
         }
 
@@ -103,12 +104,12 @@ public class SFCommands {
 
     private static int executeOPENGUI(CommandContext<CommandSourceStack> context) {
         if (!context.getSource().isPlayer()) {
-            context.getSource().sendFailure(Component.literal("You must be a player to use this command."));
+            context.getSource().sendFailure(Component.translatable("sablefinder.message.not_player"));
             return 0;
         }
 
         if (!context.getSource().hasPermission(3)) {
-            context.getSource().sendFailure(Component.literal("You do not have permission to use this command."));
+            context.getSource().sendFailure(Component.translatable("sablefinder.message.no_permission"));
             return 0;
         }
 
@@ -119,7 +120,7 @@ public class SFCommands {
                 CompletableFuture.supplyAsync(() -> awaitClientResponse(player))
                         .thenAcceptAsync(clientHasMod -> {
                             if (!clientHasMod) {
-                                context.getSource().sendFailure(Component.literal("The client does not have the SableFinder mod installed."));
+                                context.getSource().sendFailure(Component.translatable("sablefinder.message.client_mod_missing"));
                                 return;
                             }
 
@@ -127,7 +128,7 @@ public class SFCommands {
                                     .whenComplete((tag, error) -> {
                                         if (error != null) {
                                             SableFinder.LOGGER.error("An error occurred while loading contraptions", error);
-                                            server.execute(() -> context.getSource().sendFailure(Component.literal("An error occurred while loading contraptions: " + error.getMessage())));
+                                            server.execute(() -> context.getSource().sendFailure(Component.translatable("sablefinder.message.load_error", error.getMessage())));
                                             return;
                                         }
 
@@ -135,11 +136,11 @@ public class SFCommands {
                                     });
                         }, server::execute);
             } else {
-                context.getSource().sendFailure(Component.literal("This command can only be executed by a player."));
+                context.getSource().sendFailure(Component.translatable("sablefinder.message.not_player"));
                 return 0;
             }
         } catch (Exception e) {
-            context.getSource().sendFailure(Component.literal("An error occurred while executing the SableFinder command: " + e.getMessage()));
+            context.getSource().sendFailure(Component.translatable("sablefinder.message.command_error", e.getMessage()));
             SableFinder.LOGGER.error("An error occurred while executing the SableFinder command", e);
         }
 
@@ -147,81 +148,18 @@ public class SFCommands {
     }
 
     private static boolean awaitClientResponse(ServerPlayer player) {
-        CompletableFuture<Boolean> response = CheckExistencePacket.request(player.getUUID());
+        final UUID requestId = PacketRequests.newId();
         try {
-            PacketDistributor.sendToPlayer(player, new CheckExistencePacket(true, false));
-            return response.get(RESPONSE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            return PacketRequests.sendToPlayer(player, new CheckExistencePacket(requestId, true, false))
+                    .get(RESPONSE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                    .isClientHasMod();
         } catch (TimeoutException e) {
+            PacketRequests.cancel(requestId);
             return false;
         } catch (Exception e) {
+            PacketRequests.cancel(requestId);
             SableFinder.LOGGER.error("An error occurred while verifying that the client has the SableFinder mod installed", e);
             return false;
-        } finally {
-            CheckExistencePacket.removePending(player.getUUID());
-            response.cancel(true);
         }
     }
 }
-
-/*
-    final ServerLevel level = context.getSource().getLevel();
-
-        context.getSource().sendSuccess(() -> Component.literal("Saving world..."), true);
-        level.getServer().saveEverything(false, true, true);
-
-        final ServerSubLevelContainer container = ServerSubLevelContainer.getContainer(level);
-        var storage = container.getHoldingChunkMap().getStorage();
-
-        final File[] regionFiles = storage.getFolder().toFile().listFiles((dir, name) -> name.endsWith(SubLevelRegionFile.FILE_EXTENSION));
-
-        if (regionFiles != null) {
-            for (final File regionFile : regionFiles) {
-                final String fileName = regionFile.getName();
-                final String withoutExtension = fileName.substring(0, fileName.length() - SubLevelRegionFile.FILE_EXTENSION.length());
-                final String[] parts = withoutExtension.split("\\.");
-                if (parts.length != 3) continue;
-
-                final int regionX, regionZ;
-                try {
-                    regionX = Integer.parseInt(parts[1]);
-                    regionZ = Integer.parseInt(parts[2]);
-                } catch (final NumberFormatException e) {
-                    continue;
-                }
-
-                for (int localX = 0; localX < SubLevelRegionFile.SIDE_LENGTH; localX++) {
-                    for (int localZ = 0; localZ < SubLevelRegionFile.SIDE_LENGTH; localZ++) {
-                        final ChunkPos chunkPos = new ChunkPos(
-                                regionX * SubLevelRegionFile.SIDE_LENGTH + localX,
-                                regionZ * SubLevelRegionFile.SIDE_LENGTH + localZ
-                        );
-
-                        final SubLevelHoldingChunk holdingChunk = storage.attemptLoadHoldingChunk(chunkPos);
-                        if (holdingChunk == null) continue;
-
-                        for (final SavedSubLevelPointer pointer : holdingChunk.getSubLevelPointers()) {
-                            final SubLevelData data = storage.attemptLoadSubLevel(chunkPos, pointer);
-
-                            final SableContraptionData contraption = SableContraptionData.parse(data, level);
-
-                            final var component = Component.literal("UUID: " + contraption.uuid());
-                            component.append(Component.literal("\nPose: " + contraption.pose()));
-                            component.append(Component.literal("\nChunks: " + contraption.chunkCount()));
-
-                            final int[] nonAirCount = {0};
-                            contraption.forEachBlock((pos, state) -> {
-                                nonAirCount[0]++;
-                                component.append(Component.literal("\nBlock " + pos + ": " + state));
-                            });
-
-                            component.append(Component.literal("\nTotal non-air blocks: " + nonAirCount[0]));
-
-                            context.getSource().sendSuccess(() -> component, true);
-                        }
-                    }
-                }
-            }
-        }
-
-        return 0;
-*/

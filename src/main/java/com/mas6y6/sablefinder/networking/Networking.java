@@ -55,5 +55,17 @@ public class Networking {
                 ClientMessagePacket.STREAM_CODEC,
                 ClientMessagePacket::handleClient
         );
+
+        payloadregister.playToServer(
+                SearchForContraptionsPacket.TYPE,
+                SearchForContraptionsPacket.STREAM_CODEC,
+                SearchForContraptionsPacket::handleServer
+        );
+
+        payloadregister.playToClient(
+                SearchForContraptionsResponsePacket.TYPE,
+                SearchForContraptionsResponsePacket.STREAM_CODEC,
+                SearchForContraptionsResponsePacket::handleClient
+        );
     }
 }

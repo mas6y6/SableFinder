@@ -14,11 +14,13 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.UUID;
 
-public record SableContraptionRequestPacket(UUID contraptionId) implements CustomPacketPayload {
+public record SableContraptionRequestPacket(UUID requestId, UUID contraptionId) implements RequestPayload<GetSableContraptionPacket> {
     public static final CustomPacketPayload.Type<SableContraptionRequestPacket> TYPE =
             new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath(SableFinder.MODID, "request_contraption"));
 
     public static final StreamCodec<ByteBuf, SableContraptionRequestPacket> STREAM_CODEC = StreamCodec.composite(
+            UUIDUtil.STREAM_CODEC,
+            SableContraptionRequestPacket::requestId,
             UUIDUtil.STREAM_CODEC,
             SableContraptionRequestPacket::contraptionId,
             SableContraptionRequestPacket::new
@@ -27,6 +29,11 @@ public record SableContraptionRequestPacket(UUID contraptionId) implements Custo
     @Override
     public @NotNull CustomPacketPayload.Type<? extends CustomPacketPayload> type() {
         return TYPE;
+    }
+
+    @Override
+    public CustomPacketPayload.Type<GetSableContraptionPacket> responseType() {
+        return GetSableContraptionPacket.TYPE;
     }
 
     public static void handleServer(SableContraptionRequestPacket packet, IPayloadContext iPayloadContext) {
@@ -40,7 +47,7 @@ public record SableContraptionRequestPacket(UUID contraptionId) implements Custo
                     }
 
                     if (contraption != null && server.isRunning()) {
-                        server.execute(() -> iPayloadContext.reply(new GetSableContraptionPacket(contraption)));
+                        server.execute(() -> iPayloadContext.reply(new GetSableContraptionPacket(packet.requestId(), contraption)));
                     }
                 });
             }

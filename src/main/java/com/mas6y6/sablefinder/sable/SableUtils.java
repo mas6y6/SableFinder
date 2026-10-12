@@ -35,10 +35,6 @@ import java.util.stream.Collectors;
 
 public class SableUtils {
 
-    /**
-     * All Sable scans run through a single background thread so they never overlap and never
-     * stall the server tick thread. The thread is a daemon so it can't keep the game alive.
-     */
     private static final ExecutorService SCAN_EXECUTOR = Executors.newSingleThreadExecutor(runnable -> {
         final Thread thread = new Thread(runnable, "sablefinder-scan");
         thread.setDaemon(true);
@@ -58,29 +54,14 @@ public class SableUtils {
         return getAllContraptionsAsync(server, true);
     }
 
-    /**
-     * Gathers every stored contraption without blocking the server tick thread.
-     *
-     * <p>The sub-level save still runs synchronously on the calling thread (it must be the server
-     * thread, since it touches live server state), but the expensive region scan/parse is moved to
-     * {@link #SCAN_EXECUTOR}. The returned future completes on that background thread, so callers
-     * must hop back to the server thread before touching server state or sending packets.
-     */
     public static CompletableFuture<List<SableContraptionData>> getAllContraptionsAsync(MinecraftServer server, boolean saveWorld) {
         saveSubLevels(server, saveWorld);
 
-        // Snapshot the live container state while we're still on the server thread so the
-        // background scan only has to read storage files.
         final List<LevelScan> plan = buildScanPlan(server);
 
         return CompletableFuture.supplyAsync(() -> scanContraptions(plan), SCAN_EXECUTOR);
     }
 
-    /**
-     * Persists Sable's sub-levels without flushing every vanilla chunk. This is the sub-level half
-     * of a normal world save (Sable injects the same call into {@code ServerLevel#save}), just much
-     * cheaper. Must run on the server thread.
-     */
     private static void saveSubLevels(MinecraftServer server, boolean save) {
         if (!save) {
             return;
@@ -99,13 +80,9 @@ public class SableUtils {
         }
     }
 
-    /**
-     * Captures everything the background scan needs. Must be called on the server thread.
-     */
     private static List<LevelScan> buildScanPlan(MinecraftServer server) {
         final List<LevelScan> plan = new ArrayList<>();
 
-        // Sub-levels are stored per dimension, so every level's container has to be scanned.
         for (final ServerLevel level : server.getAllLevels()) {
             final ServerSubLevelContainer container = ServerSubLevelContainer.getContainer(level);
 
@@ -123,9 +100,7 @@ public class SableUtils {
         return plan;
     }
 
-    /**
-     * Reads and parses every stored sub-level. Safe to run off the server thread.
-     */
+
     private static List<SableContraptionData> scanContraptions(List<LevelScan> plan) {
         final List<SableContraptionData> list = new ArrayList<>();
 
@@ -147,7 +122,7 @@ public class SableUtils {
         return getAllContraptionsAsync(server).thenApply(SableUtils::buildContraptionsTag);
     }
 
-    private static CompoundTag buildContraptionsTag(List<SableContraptionData> contraptions) {
+    public static CompoundTag buildContraptionsTag(List<SableContraptionData> contraptions) {
         CompoundTag tag = new CompoundTag();
         var list = new net.minecraft.nbt.ListTag();
 
@@ -171,7 +146,8 @@ public class SableUtils {
     }
 
     public static CompletableFuture<SableContraptionData> getContraptionAsync(MinecraftServer server, UUID uuid, boolean saveServer) {
-        return getAllContraptionsAsync(server, saveServer).thenApply(list -> list.stream()
+        return getAllContraptionsAsync(server, saveServer)
+                .thenApply(list -> list.stream()
                 .filter(contraption -> contraption.uuid().equals(uuid))
                 .findFirst()
                 .orElse(null));
@@ -180,7 +156,6 @@ public class SableUtils {
     private record LevelScan(ServerLevel level, SubLevelStorage storage, Set<UUID> loadedUuids) {}
 
     public static boolean deleteContraption(MinecraftServer server, UUID uuid) {
-        // Sub-levels live in per-dimension containers, so search every dimension for this UUID.
         for (final ServerLevel level : server.getAllLevels()) {
             final ServerSubLevelContainer container = ServerSubLevelContainer.getContainer(level);
 
@@ -198,7 +173,6 @@ public class SableUtils {
     }
 
     private static boolean deleteFromContainer(ServerSubLevelContainer container, UUID uuid) {
-        // Fast path: the contraption is loaded, so it can be removed directly.
         SubLevel subLevel = container.getSubLevel(uuid);
         if (subLevel != null) {
             container.removeSubLevel(subLevel, SubLevelRemovalReason.REMOVED);
@@ -207,8 +181,6 @@ public class SableUtils {
 
         final SubLevelHoldingChunkMap holdingChunkMap = container.getHoldingChunkMap();
 
-        // The contraption may be sitting in memory, waiting for its chunks to load. If so, let
-        // Sable load it and remove it the normal way.
         final HoldingSubLevel holdingSubLevel = holdingChunkMap.getHoldingSubLevel(uuid);
 
         GlobalSavedSubLevelPointer pointer = null;
@@ -232,13 +204,9 @@ public class SableUtils {
                 return true;
             }
 
-            // The sub-level exists in memory but its data is corrupt and cannot be loaded.
-            // Fall through and remove it straight from storage instead.
             SableFinder.LOGGER.warn("Contraption {} could not be loaded for deletion; removing it directly from storage", uuid);
         }
 
-        // The contraption is not loaded and cannot be loaded (for example, its stored plot is
-        // corrupt). Delete its stored data and holding-chunk pointer directly.
         deleteStoredSubLevel(holdingChunkMap, pointer, uuid);
         return true;
     }
@@ -246,8 +214,6 @@ public class SableUtils {
     private static boolean deleteStoredSubLevel(SubLevelHoldingChunkMap holdingChunkMap, GlobalSavedSubLevelPointer pointer, UUID uuid) {
         final SubLevelStorage storage = holdingChunkMap.getStorage();
 
-        // Prefer the in-memory holding chunk, since it may contain changes that haven't been
-        // saved to disk yet. Fall back to the copy stored on disk.
         SubLevelHoldingChunk holdingChunk = getLoadedHoldingChunk(holdingChunkMap, pointer.chunkPos());
         if (holdingChunk == null) {
             holdingChunk = storage.attemptLoadHoldingChunk(pointer.chunkPos());
@@ -259,7 +225,6 @@ public class SableUtils {
             storage.attemptSaveHoldingChunk(pointer.chunkPos(), holdingChunk);
         }
 
-        // Writing null clears the stored data and frees the sub-level index.
         storage.attemptSaveSubLevel(pointer, null);
 
         try {
@@ -297,13 +262,10 @@ public class SableUtils {
     private static GlobalSavedSubLevelPointer findSubLevelPointer(ServerSubLevelContainer container, UUID uuid) {
         final SubLevelHoldingChunkMap holdingChunkMap = container.getHoldingChunkMap();
 
-        // The contraption may already be kept in an in-memory holding chunk waiting to load.
         final HoldingSubLevel holdingSubLevel = holdingChunkMap.getHoldingSubLevel(uuid);
         if (holdingSubLevel != null && holdingSubLevel.pointer() != null) {
             return holdingSubLevel.pointer();
         }
-
-        // Otherwise scan the stored data for the pointer that owns this UUID.
         final GlobalSavedSubLevelPointer[] found = new GlobalSavedSubLevelPointer[1];
         forEachStoredSubLevel(holdingChunkMap.getStorage(), (chunkPos, pointer, data) -> {
             if (uuid.equals(data.uuid())) {

@@ -252,7 +252,7 @@ public class Contraption3DViewComponent extends BaseComponent {
         Font font = Minecraft.getInstance().font;
 
         if (blocks.isEmpty()) {
-            Component emptyText = Component.literal("§7No block models found :(");
+            Component emptyText = Component.translatable("sablefinder.ui.view.empty");
             int textWidth = font.width(emptyText);
             context.drawString(font, emptyText, this.x + (this.width - textWidth) / 2, this.y + (this.height - 8) / 2, 0xFFFFFFFF, false);
             return;
@@ -292,7 +292,14 @@ public class Contraption3DViewComponent extends BaseComponent {
         for (RenderBlock block : blocks) {
             poseStack.pushPose();
             poseStack.translate(block.pos.getX(), block.pos.getY(), block.pos.getZ());
-            blockRenderer.renderSingleBlock(block.state, poseStack, context.bufferSource(), 0xF000F0, OverlayTexture.NO_OVERLAY, ModelData.EMPTY, null);
+            blockRenderer.renderSingleBlock(
+                    block.state, poseStack,
+                    context.bufferSource(),
+                    0xF000F0,
+                    OverlayTexture.NO_OVERLAY,
+                    ModelData.EMPTY,
+                    null
+            );
             poseStack.popPose();
         }
 
@@ -315,15 +322,15 @@ public class Contraption3DViewComponent extends BaseComponent {
         context.disableScissor();
 
         // Top-left HUD badge: Block count
-        String countBadge = "§6" + blocks.size() + " §7blocks";
+        Component countBadge = Component.translatable("sablefinder.ui.view.block_count", blocks.size());
         int badgeWidth = font.width(countBadge);
         context.fill(this.x + 4, this.y + 4, this.x + 10 + badgeWidth, this.y + 16, 0x88000000);
-        context.drawString(font, Component.literal(countBadge), this.x + 7, this.y + 6, 0xFFFFFF, false);
+        context.drawString(font, countBadge, this.x + 7, this.y + 6, 0xFFFFFF, false);
 
         // Bottom-left hints
-        context.drawString(font, Component.literal("§8L-Drag: Rotate"), this.x + 6, this.y + this.height - 32, 0xFFFFFF, false);
-        context.drawString(font, Component.literal("§8R-Drag: Pan"), this.x + 6, this.y + this.height - 22, 0xFFFFFF, false);
-        context.drawString(font, Component.literal("§8Scroll: Zoom"), this.x + 6, this.y + this.height - 12, 0xFFFFFF, false);
+        context.drawString(font, Component.translatable("sablefinder.ui.view.hint.rotate"), this.x + 6, this.y + this.height - 32, 0xFFFFFF, false);
+        context.drawString(font, Component.translatable("sablefinder.ui.view.hint.pan"), this.x + 6, this.y + this.height - 22, 0xFFFFFF, false);
+        context.drawString(font, Component.translatable("sablefinder.ui.view.hint.zoom"), this.x + 6, this.y + this.height - 12, 0xFFFFFF, false);
     }
 
     private void drawBorder(OwoUIDrawContext context, int x, int y, int width, int height, int color) {

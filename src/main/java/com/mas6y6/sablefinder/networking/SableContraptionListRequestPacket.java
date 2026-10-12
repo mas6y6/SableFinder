@@ -3,6 +3,7 @@ package com.mas6y6.sablefinder.networking;
 import com.mas6y6.sablefinder.SableFinder;
 import com.mas6y6.sablefinder.sable.SableUtils;
 import io.netty.buffer.ByteBuf;
+import net.minecraft.core.UUIDUtil;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
@@ -11,18 +12,26 @@ import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 import org.jetbrains.annotations.NotNull;
 
-public record SableContraptionListRequestPacket() implements CustomPacketPayload {
+import java.util.UUID;
+
+public record SableContraptionListRequestPacket(UUID requestId) implements RequestPayload<GetSableContraptionListPacket> {
     public static final CustomPacketPayload.Type<SableContraptionListRequestPacket> TYPE =
             new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath(SableFinder.MODID, "request_contraption_list"));
 
-    public static final StreamCodec<ByteBuf, SableContraptionListRequestPacket> STREAM_CODEC = StreamCodec.of(
-            (buf, packet) -> {},
-            buf -> new SableContraptionListRequestPacket()
+    public static final StreamCodec<ByteBuf, SableContraptionListRequestPacket> STREAM_CODEC = StreamCodec.composite(
+            UUIDUtil.STREAM_CODEC,
+            SableContraptionListRequestPacket::requestId,
+            SableContraptionListRequestPacket::new
     );
 
     @Override
     public @NotNull CustomPacketPayload.Type<? extends CustomPacketPayload> type() {
         return TYPE;
+    }
+
+    @Override
+    public CustomPacketPayload.Type<GetSableContraptionListPacket> responseType() {
+        return GetSableContraptionListPacket.TYPE;
     }
 
     public static void handleServer(SableContraptionListRequestPacket packet, IPayloadContext iPayloadContext) {
@@ -37,7 +46,7 @@ public record SableContraptionListRequestPacket() implements CustomPacketPayload
                         }
 
                         if (server.isRunning()) {
-                            server.execute(() -> iPayloadContext.reply(new GetSableContraptionListPacket(tag)));
+                            server.execute(() -> iPayloadContext.reply(new GetSableContraptionListPacket(packet.requestId(), tag)));
                         }
                     });
                 } catch (Exception e) {
