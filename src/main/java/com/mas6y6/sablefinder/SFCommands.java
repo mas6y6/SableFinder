@@ -34,8 +34,8 @@ public class SFCommands {
                                         .then(
                                                 argument("uuid", StringArgumentType.string())
                                                         .suggests((context,builder) -> {
-                                                            SableUtils.getAllContraptions(context.getSource().getServer(),false)
-                                                                    .forEach(contraptionData -> builder.suggest(contraptionData.uuid().toString()));
+                                                            SableUtils.getCachedContraptionUuids(context.getSource().getServer())
+                                                                    .forEach(uuid -> builder.suggest(uuid.toString()));
 
                                                             return builder.buildFuture();
                                                         })

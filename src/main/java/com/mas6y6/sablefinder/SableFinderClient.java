@@ -29,12 +29,6 @@ public class SableFinderClient {
         NeoForge.EVENT_BUS.addListener(this::onLoggingOut);
     }
 
-    /**
-     * Keybindings must be registered here (mod-lifecycle event, fires before
-     * any screen exists). The keybind {@link KeyMapping}s are actually used by
-     * {@link com.mas6y6.sablefinder.client.SableFinderScreen#keyPressed},
-     * which matches against them so the in-browser shortcuts follow rebinds.
-     */
     @SubscribeEvent
     public void registerKeybinds(RegisterKeyMappingsEvent event) {
         event.register(Keybinds.REFRESH_KEY.get());

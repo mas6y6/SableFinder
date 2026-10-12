@@ -38,8 +38,6 @@ public class SableFinder {
         NeoForge.EVENT_BUS.addListener(this::onPlayerLoggedOut);
         NeoForge.EVENT_BUS.addListener(this::onServerStart);
         NeoForge.EVENT_BUS.addListener(this::onServerStop);
-
-
     }
 
     @SubscribeEvent

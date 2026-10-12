@@ -67,5 +67,11 @@ public class Networking {
                 SearchForContraptionsResponsePacket.STREAM_CODEC,
                 SearchForContraptionsResponsePacket::handleClient
         );
+
+        payloadregister.playToServer(
+                CancelSearchPacket.TYPE,
+                CancelSearchPacket.STREAM_CODEC,
+                CancelSearchPacket::handleServer
+        );
     }
 }

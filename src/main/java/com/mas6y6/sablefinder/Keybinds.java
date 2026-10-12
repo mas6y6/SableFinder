@@ -1,8 +1,8 @@
 package com.mas6y6.sablefinder;
 
 import com.mojang.blaze3d.platform.InputConstants;
-import cpw.mods.util.Lazy;
 import net.minecraft.client.KeyMapping;
+import net.neoforged.neoforge.common.util.Lazy;
 import org.lwjgl.glfw.GLFW;
 
 public class Keybinds {

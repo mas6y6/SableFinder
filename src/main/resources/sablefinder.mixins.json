@@ -3,7 +3,9 @@
   "package": "com.mas6y6.sablefinder.mixin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
-    "NeoOwoNetworkingMixin"
+    "NeoOwoNetworkingMixin",
+    "accesors.PhysicsStaffLockAccessor",
+    "PhysicsStaffServerHandlerMixin"
   ],
   "injectors": {
     "defaultRequire": 1

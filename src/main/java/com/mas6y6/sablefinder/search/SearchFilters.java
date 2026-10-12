@@ -3,7 +3,6 @@ package com.mas6y6.sablefinder.search;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
-import net.minecraft.resources.ResourceLocation;
 
 import java.util.ArrayList;
 
@@ -22,8 +21,10 @@ public record SearchFilters(
         int blockSizeMax,
 
         boolean useBlockSearch,
-        ArrayList<ResourceLocation> blockSearchIDs
+        ArrayList<BlockFilter> blockFilters
 ) {
+    public static final SearchFilters DEFAULT = new SearchFilters();
+
     public static final StreamCodec<ByteBuf, SearchFilters> STREAM_CODEC =
             StreamCodec.of(
                     (buf, filters) -> {
@@ -42,9 +43,9 @@ public record SearchFilters(
 
                         ByteBufCodecs.BOOL.encode(buf, filters.useBlockSearch());
                         ByteBufCodecs.collection(
-                                ArrayList<ResourceLocation>::new,
-                                ResourceLocation.STREAM_CODEC
-                        ).encode(buf, filters.blockSearchIDs());
+                                ArrayList::new,
+                                BlockFilter.STREAM_CODEC
+                        ).encode(buf, filters.blockFilters());
                     },
                     buf -> new SearchFilters(
                             ByteBufCodecs.BOOL.decode(buf),
@@ -62,9 +63,130 @@ public record SearchFilters(
 
                             ByteBufCodecs.BOOL.decode(buf),
                             ByteBufCodecs.collection(
-                                    ArrayList<ResourceLocation>::new,
-                                    ResourceLocation.STREAM_CODEC
+                                    ArrayList::new,
+                                    BlockFilter.STREAM_CODEC
                             ).decode(buf)
                     )
             );
+
+    private SearchFilters() {
+        this(
+                false,
+                false, "",
+                false, "",
+                false, BlockSearchMethod.GREATER_THEN, 0, 0,
+                false, new ArrayList<>()
+        );
+    }
+
+    public SearchFilters withSaveServer(boolean saveServer) {
+        return new SearchFilters(
+                saveServer,
+                useNameSearch, nameSearch,
+                useUUIDSearch, uuidSearch,
+                useBlockSize, blockSearchMethod, blockSize, blockSizeMax,
+                useBlockSearch, blockFilters
+        );
+    }
+
+    public SearchFilters withUseNameSearch(boolean useNameSearch) {
+        return new SearchFilters(
+                saveServer,
+                useNameSearch, nameSearch,
+                useUUIDSearch, uuidSearch,
+                useBlockSize, blockSearchMethod, blockSize, blockSizeMax,
+                useBlockSearch, blockFilters
+        );
+    }
+
+    public SearchFilters withNameSearch(String nameSearch) {
+        return new SearchFilters(
+                saveServer,
+                useNameSearch, nameSearch,
+                useUUIDSearch, uuidSearch,
+                useBlockSize, blockSearchMethod, blockSize, blockSizeMax,
+                useBlockSearch, blockFilters
+        );
+    }
+
+    public SearchFilters withUseUUIDSearch(boolean useUUIDSearch) {
+        return new SearchFilters(
+                saveServer,
+                useNameSearch, nameSearch,
+                useUUIDSearch, uuidSearch,
+                useBlockSize, blockSearchMethod, blockSize, blockSizeMax,
+                useBlockSearch, blockFilters
+        );
+    }
+
+    public SearchFilters withUuidSearch(String uuidSearch) {
+        return new SearchFilters(
+                saveServer,
+                useNameSearch, nameSearch,
+                useUUIDSearch, uuidSearch,
+                useBlockSize, blockSearchMethod, blockSize, blockSizeMax,
+                useBlockSearch, blockFilters
+        );
+    }
+
+    public SearchFilters withUseBlockSize(boolean useBlockSize) {
+        return new SearchFilters(
+                saveServer,
+                useNameSearch, nameSearch,
+                useUUIDSearch, uuidSearch,
+                useBlockSize, blockSearchMethod, blockSize, blockSizeMax,
+                useBlockSearch, blockFilters
+        );
+    }
+
+    public SearchFilters withBlockSearchMethod(BlockSearchMethod blockSearchMethod) {
+        return new SearchFilters(
+                saveServer,
+                useNameSearch, nameSearch,
+                useUUIDSearch, uuidSearch,
+                useBlockSize, blockSearchMethod, blockSize, blockSizeMax,
+                useBlockSearch, blockFilters
+        );
+    }
+
+    public SearchFilters withBlockSize(int blockSize) {
+        return new SearchFilters(
+                saveServer,
+                useNameSearch, nameSearch,
+                useUUIDSearch, uuidSearch,
+                useBlockSize, blockSearchMethod, blockSize, blockSizeMax,
+                useBlockSearch, blockFilters
+        );
+    }
+
+    public SearchFilters withBlockSizeMax(int blockSizeMax) {
+        return new SearchFilters(
+                saveServer,
+                useNameSearch, nameSearch,
+                useUUIDSearch, uuidSearch,
+                useBlockSize, blockSearchMethod, blockSize, blockSizeMax,
+                useBlockSearch, blockFilters
+        );
+    }
+
+    public SearchFilters withUseBlockSearch(boolean useBlockSearch) {
+        return new SearchFilters(
+                saveServer,
+                useNameSearch, nameSearch,
+                useUUIDSearch, uuidSearch,
+                useBlockSize, blockSearchMethod, blockSize, blockSizeMax,
+                useBlockSearch, blockFilters
+        );
+    }
+
+    public SearchFilters withBlockFilters(ArrayList<BlockFilter> blockFilters) {
+        return new SearchFilters(
+                saveServer,
+                useNameSearch, nameSearch,
+                useUUIDSearch, uuidSearch,
+                useBlockSize, blockSearchMethod, blockSize, blockSizeMax,
+                useBlockSearch, blockFilters
+        );
+    }
+
 }
