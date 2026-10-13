@@ -45,9 +45,6 @@ public class SFCommands {
                                                         .executes(SFCommands::executeVIEWUUID)
                                         )
                         )
-                        .then(
-                                Commands.literal("view_name")
-                        )
                         .then(Commands.literal("open").executes(SFCommands::executeOPENGUI))
         );
     }

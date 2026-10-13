@@ -162,5 +162,6 @@
   "sablefinder.message.delete.failed": "An error occurred while deleting the contraption. Check server logs.",
 
   "key.sableFinder.next_contraption": "Next Contraption",
-  "key.sableFinder.previous_contraption": "Previous Contraption"
+  "key.sableFinder.previous_contraption": "Previous Contraption",
+  "sablefinder.ui.coming_soon": "Coming Soon!"
 }
