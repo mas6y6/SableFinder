@@ -227,7 +227,51 @@ neoForge {
 // "optional", meaning it will not be pulled by dependents of this mod.
 configurations {
     runtimeClasspath.extendsFrom localRuntime
+    aeronauticsBundle
 }
+
+var extractedBundleDir = layout.buildDirectory.dir("extracted-simulated")
+
+var extractAeroBundle = tasks.register("extractAeroBundle", Copy) {
+    inputs.files(configurations.aeronauticsBundle)
+    from { configurations.aeronauticsBundle.collect { zipTree(it) } }
+    include "META-INF/jarjar/*simulated*.jar"
+    include "META-INF/jarjar/*offroad*.jar"
+    include "META-INF/jarjar/*aeronautics*.jar"
+    eachFile {
+        if (it.name.contains("simulated")) {
+            it.relativePath = new RelativePath(true, "simulated.jar")
+        } else if (it.name.contains("offroad")) {
+            it.relativePath = new RelativePath(true, "offroad.jar")
+        } else if (it.name.contains("aeronautics")) {
+            it.relativePath = new RelativePath(true, "aeronautics.jar")
+        }
+    }
+    includeEmptyDirs = false
+    into extractedBundleDir
+    // Copy reports success even when the include matches nothing, which would
+    // surface later as a baffling "cannot find ZiplineClientManager" during
+    // compileJava; fail at the source if the bundle layout ever changes.
+    doLast {
+        if (!extractedBundleDir.get().file("simulated.jar").asFile.exists()) {
+            throw new GradleException("No Simulated jar-in-jar found in create-aeronautics ${create_aeronautics_version}; the bundle's META-INF/jarjar layout may have changed.")
+        }
+        if (!extractedBundleDir.get().file("offroad.jar").asFile.exists()) {
+            throw new GradleException("No Offroad jar-in-jar found in create-aeronautics ${create_aeronautics_version}; the bundle's META-INF/jarjar layout may have changed.")
+        }
+        if (!extractedBundleDir.get().file("aeronautics.jar").asFile.exists()) {
+            throw new GradleException("No Aeronautics jar-in-jar found in create-aeronautics ${create_aeronautics_version}; the bundle's META-INF/jarjar layout may have changed.")
+        }
+    }
+}
+var simulatedJar = files(extractedBundleDir.map { it.file("simulated.jar") })
+simulatedJar.builtBy(extractAeroBundle)
+
+var aeronauticsJar = files(extractedBundleDir.map { it.file("aeronautics.jar") })
+aeronauticsJar.builtBy(extractAeroBundle)
+
+var offroadJar = files(extractedBundleDir.map { it.file("offroad.jar") })
+offroadJar.builtBy(extractAeroBundle)
 
 dependencies {
     compileOnly("dev.ryanhcode.sable:sable-neoforge-${minecraft_version}:${sable_version}")
@@ -246,9 +290,16 @@ dependencies {
         exclude group: "maven.modrinth"
     }
 
-    fileTree('libs').files.each { file ->
-        runtimeOnly files(file)
-    }
+    runtimeOnly(files("libs/create-1.21.1-6.0.10.jar"))
+
+    compileOnly simulatedJar
+    compileOnly aeronauticsJar
+    compileOnly offroadJar
+    aeronauticsBundle("maven.modrinth:create-aeronautics:${create_aeronautics_version}+mc${minecraft_version}") { transitive = false }
+    runtimeOnly simulatedJar
+    runtimeOnly aeronauticsJar
+    runtimeOnly offroadJar
+    aeronauticsBundle("maven.modrinth:create-aeronautics:${create_aeronautics_version}+mc${minecraft_version}") { transitive = false }
 
     implementation "io.wispforest:owo-lib-neoforge:${project.owo_version}"
     interfaceInjectionData "io.wispforest:owo-lib-neoforge:${project.owo_version}"

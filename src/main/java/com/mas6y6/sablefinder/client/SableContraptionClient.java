@@ -1,62 +1,46 @@
 package com.mas6y6.sablefinder.client;
 
+import com.mas6y6.sablefinder.networking.GetSableContraptionListPacket;
+import com.mas6y6.sablefinder.networking.GetSableContraptionPacket;
+import com.mas6y6.sablefinder.networking.PacketRequests;
 import com.mas6y6.sablefinder.networking.SableContraptionListRequestPacket;
 import com.mas6y6.sablefinder.networking.SableContraptionRequestPacket;
+import com.mas6y6.sablefinder.networking.SearchForContraptionsPacket;
+import com.mas6y6.sablefinder.networking.SearchForContraptionsResponsePacket;
 import com.mas6y6.sablefinder.sable.SableContraptionData;
+import com.mas6y6.sablefinder.search.SearchFilters;
 import net.minecraft.nbt.CompoundTag;
-import net.neoforged.neoforge.network.PacketDistributor;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicReference;
+
 
 public final class SableContraptionClient {
-    private static final ConcurrentHashMap<UUID, CompletableFuture<SableContraptionData>> PENDING = new ConcurrentHashMap<>();
-    private static final AtomicReference<CompletableFuture<CompoundTag>> PENDING_LIST = new AtomicReference<>();
-
     private SableContraptionClient() {
     }
 
-    public static CompletableFuture<SableContraptionData> request(UUID contraptionId) {
-        CompletableFuture<SableContraptionData> future = new CompletableFuture<>();
-        PENDING.put(contraptionId, future);
-        PacketDistributor.sendToServer(new SableContraptionRequestPacket(contraptionId));
-        return future;
+    public static @NotNull CompletableFuture<SableContraptionData> request(UUID contraptionId) {
+        return PacketRequests.sendToServer(new SableContraptionRequestPacket(PacketRequests.newId(), contraptionId))
+                .thenApply(GetSableContraptionPacket::contraption);
     }
 
-    public static void complete(UUID contraptionId, SableContraptionData data) {
-        CompletableFuture<SableContraptionData> future = PENDING.remove(contraptionId);
-        if (future != null) {
-            future.complete(data);
-        }
+    public static @NotNull CompletableFuture<CompoundTag> requestContraptionList() {
+        return PacketRequests.sendToServer(new SableContraptionListRequestPacket(PacketRequests.newId()))
+                .thenApply(GetSableContraptionListPacket::sableContraptions);
     }
 
-    public static void removePending(UUID contraptionId) {
-        PENDING.remove(contraptionId);
-    }
+    /**
+     * Runs a filtered search on the server and returns a handle for the result.
+     * The handle keeps the request id so the search can be cancelled.
+     */
+    public static @NotNull SearchRequest search(SearchFilters filters) {
+        final UUID requestId = PacketRequests.newId();
 
-    public static CompletableFuture<CompoundTag> requestContraptionList() {
-        CompletableFuture<CompoundTag> future = new CompletableFuture<>();
-        CompletableFuture<CompoundTag> old = PENDING_LIST.getAndSet(future);
-        if (old != null && !old.isDone()) {
-            old.cancel(true);
-        }
-        PacketDistributor.sendToServer(new SableContraptionListRequestPacket());
-        return future;
-    }
+        final CompletableFuture<CompoundTag> future = PacketRequests
+                .sendToServer(new SearchForContraptionsPacket(requestId, filters))
+                .thenApply(SearchForContraptionsResponsePacket::contraptions);
 
-    public static void completeContraptionList(CompoundTag data) {
-        CompletableFuture<CompoundTag> future = PENDING_LIST.getAndSet(null);
-        if (future != null) {
-            future.complete(data);
-        }
-    }
-
-    public static void clearPendingList() {
-        CompletableFuture<CompoundTag> future = PENDING_LIST.getAndSet(null);
-        if (future != null && !future.isDone()) {
-            future.cancel(true);
-        }
+        return new SearchRequest(requestId, future);
     }
 }

@@ -1,7 +1,6 @@
 package com.mas6y6.sablefinder.networking;
 
 import com.mas6y6.sablefinder.SableFinder;
-import com.mas6y6.sablefinder.sable.SableContraptionData;
 import com.mas6y6.sablefinder.sable.SableUtils;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.core.UUIDUtil;
@@ -15,11 +14,13 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.UUID;
 
-public record SableContraptionRequestPacket(UUID contraptionId) implements CustomPacketPayload {
+public record SableContraptionRequestPacket(UUID requestId, UUID contraptionId) implements RequestPayload<GetSableContraptionPacket> {
     public static final CustomPacketPayload.Type<SableContraptionRequestPacket> TYPE =
             new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath(SableFinder.MODID, "request_contraption"));
 
     public static final StreamCodec<ByteBuf, SableContraptionRequestPacket> STREAM_CODEC = StreamCodec.composite(
+            UUIDUtil.STREAM_CODEC,
+            SableContraptionRequestPacket::requestId,
             UUIDUtil.STREAM_CODEC,
             SableContraptionRequestPacket::contraptionId,
             SableContraptionRequestPacket::new
@@ -30,14 +31,25 @@ public record SableContraptionRequestPacket(UUID contraptionId) implements Custo
         return TYPE;
     }
 
-    public static void handleServer(SableContraptionRequestPacket packet, IPayloadContext iPayloadContext) {
+    @Override
+    public CustomPacketPayload.@NotNull Type<GetSableContraptionPacket> responseType() {
+        return GetSableContraptionPacket.TYPE;
+    }
+
+    public static void handleServer(@NotNull SableContraptionRequestPacket packet, @NotNull IPayloadContext iPayloadContext) {
         iPayloadContext.enqueueWork(() -> {
             if (iPayloadContext.player() instanceof ServerPlayer player) {
                 final MinecraftServer server = player.serverLevel().getServer();
-                final SableContraptionData contraption = SableUtils.getContraption(server, packet.contraptionId(), false);
-                if (contraption != null) {
-                    iPayloadContext.reply(new GetSableContraptionPacket(contraption));
-                }
+                SableUtils.getContraptionAsync(server, packet.contraptionId(), false).whenComplete((contraption, error) -> {
+                    if (error != null) {
+                        SableFinder.LOGGER.error("An error occurred while loading contraption {} for player {}", packet.contraptionId(), player.getName().getString(), error);
+                        return;
+                    }
+
+                    if (contraption != null && server.isRunning()) {
+                        server.execute(() -> iPayloadContext.reply(new GetSableContraptionPacket(packet.requestId(), contraption)));
+                    }
+                });
             }
         });
     }

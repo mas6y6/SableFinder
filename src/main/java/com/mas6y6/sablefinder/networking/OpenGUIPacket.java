@@ -33,7 +33,7 @@ public record OpenGUIPacket(CompoundTag sableContraptions, Optional<UUID> select
         return TYPE;
     }
 
-    public static void handleClient(OpenGUIPacket customPacketPayload, IPayloadContext iPayloadContext) {
+    public static void handleClient(@NotNull OpenGUIPacket customPacketPayload, @NotNull IPayloadContext iPayloadContext) {
         iPayloadContext.enqueueWork(() -> {
             ClientPayloadHandler.openGUI(customPacketPayload.sableContraptions, customPacketPayload.selectedContraptionID);
         });
