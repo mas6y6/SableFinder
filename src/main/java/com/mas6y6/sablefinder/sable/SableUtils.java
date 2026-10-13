@@ -1,6 +1,7 @@
 package com.mas6y6.sablefinder.sable;
 
 import com.mas6y6.sablefinder.SableFinder;
+import com.mas6y6.sablefinder.simulated.SimulatedCompat;
 import dev.ryanhcode.sable.api.sublevel.ServerSubLevelContainer;
 import dev.ryanhcode.sable.sublevel.SubLevel;
 import dev.ryanhcode.sable.sublevel.storage.HoldingSubLevel;
@@ -129,6 +130,10 @@ public class SableUtils {
     private static @NotNull List<LevelScan> buildScanPlan(@NotNull MinecraftServer server) {
         final List<LevelScan> plan = new ArrayList<>();
 
+        final Set<UUID> lockedUuids = SimulatedCompat.isSimulatedInstalled()
+                ? SimulatedCompat.getInstance().orElseThrow().getLockedContraptions(server)
+                : Set.of();
+
         for (final ServerLevel level : server.getAllLevels()) {
             final ServerSubLevelContainer container = ServerSubLevelContainer.getContainer(level);
 
@@ -140,7 +145,7 @@ public class SableUtils {
                     .map(SubLevel::getUniqueId)
                     .collect(Collectors.toSet());
 
-            plan.add(new LevelScan(level, container.getHoldingChunkMap().getStorage(), loadedUuids));
+            plan.add(new LevelScan(level, container.getHoldingChunkMap().getStorage(), loadedUuids, lockedUuids));
         }
 
         return plan;
@@ -160,7 +165,12 @@ public class SableUtils {
             forEachStoredSubLevel(scan.storage(), (chunkPos, pointer, data) -> {
                 checkCancelled(cancelled);
 
-                list.add(SableContraptionData.parse(data, scan.level(), scan.loadedUuids().contains(data.uuid())));
+                list.add(SableContraptionData.parse(
+                        data,
+                        scan.level(),
+                        scan.loadedUuids().contains(data.uuid()),
+                        scan.lockedUuids().contains(data.uuid())
+                ));
                 return true;
             });
         }
@@ -213,7 +223,7 @@ public class SableUtils {
                 .orElse(null));
     }
 
-    private record LevelScan(ServerLevel level, SubLevelStorage storage, Set<UUID> loadedUuids) {}
+    private record LevelScan(ServerLevel level, SubLevelStorage storage, Set<UUID> loadedUuids, Set<UUID> lockedUuids) {}
 
     public static boolean deleteContraption(@NotNull MinecraftServer server, @NotNull UUID uuid) {
         for (final ServerLevel level : server.getAllLevels()) {

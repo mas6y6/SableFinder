@@ -7,6 +7,7 @@ import com.mas6y6.sablefinder.networking.SableContraptionListRequestPacket;
 import com.mas6y6.sablefinder.networking.SableContraptionRequestPacket;
 import com.mas6y6.sablefinder.networking.SearchForContraptionsPacket;
 import com.mas6y6.sablefinder.networking.SearchForContraptionsResponsePacket;
+import com.mas6y6.sablefinder.networking.SetContraptionLockPacket;
 import com.mas6y6.sablefinder.sable.SableContraptionData;
 import com.mas6y6.sablefinder.search.SearchFilters;
 import net.minecraft.nbt.CompoundTag;
@@ -28,6 +29,11 @@ public final class SableContraptionClient {
     public static @NotNull CompletableFuture<CompoundTag> requestContraptionList() {
         return PacketRequests.sendToServer(new SableContraptionListRequestPacket(PacketRequests.newId()))
                 .thenApply(GetSableContraptionListPacket::sableContraptions);
+    }
+
+    public static @NotNull CompletableFuture<SableContraptionData> setLocked(UUID contraptionId, boolean locked) {
+        return PacketRequests.sendToServer(new SetContraptionLockPacket(PacketRequests.newId(), contraptionId, locked))
+                .thenApply(GetSableContraptionPacket::contraption);
     }
 
     /**
