@@ -1,6 +1,8 @@
 package com.mas6y6.sablefinder.client;
 
 import com.mas6y6.sablefinder.Keybinds;
+import com.mas6y6.sablefinder.SableFinder;
+import com.mas6y6.sablefinder.SableFinderClient;
 import com.mas6y6.sablefinder.networking.DeleteContraptionPacket;
 import com.mas6y6.sablefinder.sable.SableContraptionData;
 import com.mas6y6.sablefinder.simulated.SimulatedCompat;
@@ -17,6 +19,7 @@ import io.wispforest.owo.ui.container.ScrollContainer;
 import io.wispforest.owo.ui.core.*;
 import io.wispforest.owo.ui.util.UISounds;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.components.toasts.SystemToast;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
@@ -396,7 +399,9 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
 
         ButtonComponent guideButton = Components.button(
                 Component.translatable("sablefinder.ui.button.guide"),
-                button -> onClose()
+                button -> {
+                    SystemToast.addOrUpdate(Minecraft.getInstance().getToasts(), SableFinderClient.SYSTEM_TOAST_ID, Component.translatable("sablefinder.ui.coming_soon"), Component.empty());
+                }
         );
         guideButton.horizontalSizing(Sizing.fixed(40));
         guideButton.verticalSizing(Sizing.fixed(17));
