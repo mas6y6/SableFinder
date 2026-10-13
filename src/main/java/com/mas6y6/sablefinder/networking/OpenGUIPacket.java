@@ -4,7 +4,6 @@ import com.mas6y6.sablefinder.SableFinder;
 import com.mas6y6.sablefinder.client.ClientPayloadHandler;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.core.UUIDUtil;
-import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
@@ -14,15 +13,12 @@ import org.jetbrains.annotations.NotNull;
 import java.util.Optional;
 import java.util.UUID;
 
-public record OpenGUIPacket(CompoundTag sableContraptions, Optional<UUID> selectedContraptionID) implements CustomPacketPayload {
+public record OpenGUIPacket(Optional<UUID> selectedContraptionID) implements CustomPacketPayload {
     public static final CustomPacketPayload.Type<OpenGUIPacket> TYPE =
             new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath(SableFinder.MODID, "open_gui"));
 
-
     public static final StreamCodec<ByteBuf, OpenGUIPacket> STREAM_CODEC =
             StreamCodec.composite(
-                ByteBufCodecs.COMPOUND_TAG,
-                OpenGUIPacket::sableContraptions,
                 ByteBufCodecs.optional(UUIDUtil.STREAM_CODEC),
                 OpenGUIPacket::selectedContraptionID,
                 OpenGUIPacket::new
@@ -35,7 +31,7 @@ public record OpenGUIPacket(CompoundTag sableContraptions, Optional<UUID> select
 
     public static void handleClient(@NotNull OpenGUIPacket customPacketPayload, @NotNull IPayloadContext iPayloadContext) {
         iPayloadContext.enqueueWork(() -> {
-            ClientPayloadHandler.openGUI(customPacketPayload.sableContraptions, customPacketPayload.selectedContraptionID);
+            ClientPayloadHandler.openGUI(customPacketPayload.selectedContraptionID);
         });
     }
 }

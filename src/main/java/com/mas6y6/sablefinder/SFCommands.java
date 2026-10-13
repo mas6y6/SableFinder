@@ -17,7 +17,6 @@ import net.neoforged.neoforge.network.PacketDistributor;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -84,17 +83,8 @@ public class SFCommands {
                                 return;
                             }
 
-                            SableUtils.buildContraptionsTagAsync(Objects.requireNonNull(entity.getServer()))
-                                    .whenComplete((tag, error) -> {
-                                        if (error != null) {
-                                            SableFinder.LOGGER.error("An error occurred while loading contraptions", error);
-                                            server.execute(() -> context.getSource().sendFailure(Component.translatable("sablefinder.message.load_error", error.getMessage())));
-                                            return;
-                                        }
-
-                                        server.execute(() -> PacketDistributor.sendToPlayer(player, new OpenGUIPacket(tag, selectedUuid)));
-                                    });
-                        }, server::execute);
+                            server.execute(() -> PacketDistributor.sendToPlayer(player, new OpenGUIPacket(selectedUuid)));
+                        }, server);
             } else {
                 context.getSource().sendFailure(Component.translatable("sablefinder.message.not_player"));
                 return 0;
@@ -134,17 +124,8 @@ public class SFCommands {
                                 return;
                             }
 
-                            SableUtils.buildContraptionsTagAsync(Objects.requireNonNull(entity.getServer()))
-                                    .whenComplete((tag, error) -> {
-                                        if (error != null) {
-                                            SableFinder.LOGGER.error("An error occurred while loading contraptions", error);
-                                            server.execute(() -> context.getSource().sendFailure(Component.translatable("sablefinder.message.load_error", error.getMessage())));
-                                            return;
-                                        }
-
-                                        server.execute(() -> PacketDistributor.sendToPlayer(player, new OpenGUIPacket(tag, Optional.empty())));
-                                    });
-                        }, server::execute);
+                            server.execute(() -> PacketDistributor.sendToPlayer(player, new OpenGUIPacket(Optional.empty())));
+                        }, server);
             } else {
                 context.getSource().sendFailure(Component.translatable("sablefinder.message.not_player"));
                 return 0;

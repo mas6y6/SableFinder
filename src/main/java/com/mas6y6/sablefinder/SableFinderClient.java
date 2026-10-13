@@ -1,6 +1,7 @@
 package com.mas6y6.sablefinder;
 
 import com.mas6y6.sablefinder.client.ClientPayloadHandler;
+import com.mas6y6.sablefinder.client.SableFinderScreen;
 import com.mas6y6.sablefinder.config.ConfigClient;
 import com.mas6y6.sablefinder.networking.PacketRequests;
 import com.mojang.logging.LogUtils;
@@ -40,5 +41,7 @@ public class SableFinderClient {
     private void onLoggingOut(ClientPlayerNetworkEvent.LoggingOut event) {
         PacketRequests.failAll(new IOException("Client disconnected"));
         ClientPayloadHandler.setServerVersion(null);
+        // The remembered contraption belongs to the world we are leaving.
+        SableFinderScreen.forgetSession();
     }
 }

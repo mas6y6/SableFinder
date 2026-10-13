@@ -4,7 +4,6 @@ import com.mas6y6.sablefinder.SableFinder;
 import com.mas6y6.sablefinder.SableFinderClient;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.toasts.SystemToast;
-import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -16,7 +15,7 @@ import java.util.UUID;
 public class ClientPayloadHandler {
     private static @Nullable String serverVersion;
 
-    public static void openGUI(CompoundTag sableContraptions, @NotNull Optional<UUID> selectedContraptionID) {
+    public static void openGUI(@NotNull Optional<UUID> selectedContraptionID) {
         if (!isServerVersionCompatible()) {
             SystemToast.addOrUpdate(
                     Minecraft.getInstance().getToasts(),
@@ -31,7 +30,7 @@ public class ClientPayloadHandler {
             return;
         }
 
-        Minecraft.getInstance().setScreen(new SableFinderScreen(sableContraptions, selectedContraptionID));
+        Minecraft.getInstance().setScreen(new SableFinderScreen(selectedContraptionID));
     }
 
     public static void setServerVersion(@Nullable String version) {

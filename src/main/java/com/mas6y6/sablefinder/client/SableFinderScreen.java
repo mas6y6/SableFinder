@@ -1,8 +1,8 @@
 package com.mas6y6.sablefinder.client;
 
 import com.mas6y6.sablefinder.Keybinds;
-import com.mas6y6.sablefinder.SableFinder;
 import com.mas6y6.sablefinder.SableFinderClient;
+import com.mas6y6.sablefinder.config.ConfigClient;
 import com.mas6y6.sablefinder.networking.DeleteContraptionPacket;
 import com.mas6y6.sablefinder.sable.SableContraptionData;
 import com.mas6y6.sablefinder.simulated.SimulatedCompat;
@@ -43,13 +43,19 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
     private static final int COLLAPSED_SIDEBAR_WIDTH = 10;
     private static final int SCROLLBAR_RIGHT_PADDING = 8;
 
-    private @Nullable CompoundTag sableContraptions;
+    private @Nullable CompoundTag sableContraptionsCompoundTag;
+
+    // Survives closing the screen so the user can come back to the contraption they were
+    // last looking at. Cleared on disconnect so it never leaks across servers.
+    private static @Nullable UUID lastSelectedId = null;
 
     private final List<ContraptionEntry> contraptions = new ArrayList<>();
 
     private final List<ContraptionItem> listItems = new ArrayList<>();
 
     private final @Nullable UUID initiallySelectedId;
+
+    private final boolean refreshOnOpen;
 
     private LabelComponent foundCountLabel;
     private LabelComponent indexString;
@@ -63,27 +69,33 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
     private ButtonComponent refreshButton;
 
     private boolean leftSidebarCollapsed = false;
-    private boolean rightSidebarCollapsed = false;
+    private final boolean rightSidebarCollapsed = false;
     private @Nullable UUID selectedUuid = null;
     private int selectedContraptionIndex = 0;
     private boolean isSearchResults = false;
     private boolean reloading = false;
 
-    public SableFinderScreen(
-            @Nullable CompoundTag sableContraptions,
-            @NotNull Optional<UUID> selectedContraptionID
-    ) {
-        this.sableContraptions = sableContraptions;
-        this.initiallySelectedId = selectedContraptionID.orElse(null);
+    private boolean initialRefreshStarted = false;
+
+    public SableFinderScreen(@NotNull Optional<UUID> selectedContraptionID) {
+        // the refreshOnOpen() function fills the sableContraptionsCompoundTag variable so the opengui packet doesnt send it anymore.
+
+        this.initiallySelectedId = selectedContraptionID.orElse(lastSelectedId);
+        this.refreshOnOpen = ConfigClient.refreshOnOpen();
         parseContraptions();
+    }
+
+    public static void forgetSession() {
+        lastSelectedId = null;
     }
 
     @Override
     protected void init() {
         super.init();
 
-        if (initiallySelectedId != null) {
-            selectContraption(initiallySelectedId);
+        if (refreshOnOpen && !initialRefreshStarted) {
+            initialRefreshStarted = true;
+            resetAndRefreshContraptions();
         }
     }
 
@@ -116,7 +128,7 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
     }
 
     private void applyContraptions(@Nullable CompoundTag tag) {
-        this.sableContraptions = tag;
+        this.sableContraptionsCompoundTag = tag;
         parseContraptions();
         updateHeader();
         rebuildContraptionList();
@@ -144,6 +156,8 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
     private void selectContraption(UUID uuid) {
         this.selectedUuid = uuid;
         this.selectedContraptionIndex = indexOfContraption(uuid);
+        // Remember it so reopening the browser lands on the same contraption.
+        lastSelectedId = uuid;
         updateHeader();
         updateContraptionSelection();
 
@@ -217,7 +231,7 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
     private void parseContraptions() {
         contraptions.clear();
 
-        if (sableContraptions == null) {
+        if (sableContraptionsCompoundTag == null) {
             return;
         }
 
@@ -226,10 +240,10 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
         // The v1 payload ("contraptions") names unnamed contraptions differently.
         boolean prefixNameWithContraption = false;
 
-        if (sableContraptions.contains("sableContraptionsUUID", Tag.TAG_LIST)) {
-            list = sableContraptions.getList("sableContraptionsUUID", Tag.TAG_COMPOUND);
-        } else if (sableContraptions.contains("contraptions", Tag.TAG_LIST)) {
-            list = sableContraptions.getList("contraptions", Tag.TAG_COMPOUND);
+        if (sableContraptionsCompoundTag.contains("sableContraptionsUUID", Tag.TAG_LIST)) {
+            list = sableContraptionsCompoundTag.getList("sableContraptionsUUID", Tag.TAG_COMPOUND);
+        } else if (sableContraptionsCompoundTag.contains("contraptions", Tag.TAG_LIST)) {
+            list = sableContraptionsCompoundTag.getList("contraptions", Tag.TAG_COMPOUND);
             prefixNameWithContraption = true;
         }
 
@@ -337,11 +351,19 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
         rootComponent.child(mainContainer);
 
         if (contraptions.isEmpty()) {
-            showNoSelection();
+            // With nothing cached the list is about to be replaced by a refresh, so say
+            // "loading" instead of "none found" or the empty state flashes by.
+            if (refreshOnOpen) {
+                showLoading();
+            } else {
+                showNoSelection();
+            }
             return;
         }
 
-        // Prefer whatever was selected, then the requested one, then the first row.
+        // Prefer whatever is selected, then the id we were asked for, then the first row.
+        // initiallySelectedId already falls back to the remembered one when the server
+        // didn't name a specific contraption.
         UUID initialUuid = firstPresent(selectedUuid, initiallySelectedId);
         selectContraption(initialUuid != null ? initialUuid : contraptions.getFirst().uuid());
     }
@@ -696,6 +718,16 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
 
         detailsContent.clearChildren();
         detailsContent.child(content);
+    }
+
+    private void showLoading() {
+        clearPreview();
+
+        if (detailsContent == null) {
+            return;
+        }
+
+        setDetails(centeredLabel("sablefinder.ui.list.loading_list"));
     }
 
     private void showNoSelection() {
