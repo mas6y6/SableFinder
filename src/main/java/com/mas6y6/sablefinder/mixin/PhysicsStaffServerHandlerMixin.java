@@ -15,6 +15,7 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 @Mixin(PhysicsStaffServerHandler.class)
@@ -67,5 +68,10 @@ public abstract class PhysicsStaffServerHandlerMixin implements ISFPhysicsStaffS
     @Override
     public boolean isContraptionLocked(UUID uuid) {
         return this.locks.containsKey(uuid);
+    }
+
+    @Override
+    public @NotNull Set<UUID> lockedContraptions() {
+        return Set.copyOf(this.locks.keySet());
     }
 }

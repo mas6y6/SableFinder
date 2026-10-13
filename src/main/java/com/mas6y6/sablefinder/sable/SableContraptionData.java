@@ -51,6 +51,7 @@ public class SableContraptionData {
     private final CompoundTag fullTag;
     private final boolean isloaded;
     private final ResourceKey<Level> dimension;
+    private final boolean locked;
 
     private static final StreamCodec<ByteBuf, Vector3d> VECTOR_3D = StreamCodec.of(
             (buf, vector) -> {
@@ -150,6 +151,7 @@ public class SableContraptionData {
                 ByteBufCodecs.TRUSTED_COMPOUND_TAG.encode(buf, data.fullTag);
                 buf.writeBoolean(data.isloaded);
                 DIMENSION_KEY.encode(buf, data.dimension);
+                buf.writeBoolean(data.locked);
             },
             buf -> new SableContraptionData(
                     UUIDUtil.STREAM_CODEC.decode(buf),
@@ -168,7 +170,8 @@ public class SableContraptionData {
                     NULLABLE_COMPOUND_TAG.decode(buf),
                     ByteBufCodecs.TRUSTED_COMPOUND_TAG.decode(buf),
                     buf.readBoolean(),
-                    DIMENSION_KEY.decode(buf)
+                    DIMENSION_KEY.decode(buf),
+                    buf.readBoolean()
             )
     );
 
@@ -178,7 +181,7 @@ public class SableContraptionData {
                                  final int plotX, final int plotZ, final int logSize, final ResourceKey<Biome> biome,
                                  final int dataVersion, final String displayName, final Vector3d linearVelocity,
                                  final Vector3d angularVelocity, final List<UUID> dependencies, final CompoundTag userData,
-                                 final CompoundTag fullTag, boolean isloaded, final ResourceKey<Level> dimension) {
+                                 final CompoundTag fullTag, boolean isloaded, final ResourceKey<Level> dimension, final boolean locked) {
         this.uuid = uuid;
         this.pose = pose;
         this.bounds = bounds;
@@ -196,6 +199,7 @@ public class SableContraptionData {
         this.fullTag = fullTag;
         this.isloaded = isloaded;
         this.dimension = dimension;
+        this.locked = locked;
     }
 
     private static @Nullable Vector3d readOptionalVector3d(final @NotNull CompoundTag tag, final @NotNull String key) {
@@ -206,7 +210,7 @@ public class SableContraptionData {
         return new Vector3d(vector.getDouble("x"), vector.getDouble("y"), vector.getDouble("z"));
     }
 
-    public static @NotNull SableContraptionData parse(final @NotNull SubLevelData data, final @NotNull ServerLevel level, boolean isloaded) {
+    public static @NotNull SableContraptionData parse(final @NotNull SubLevelData data, final @NotNull ServerLevel level, boolean isloaded, boolean locked) {
         final CompoundTag fullTag = data.fullTag();
         final CompoundTag plot = fullTag.getCompound("plot");
         final CompoundTag chunksTag = plot.getCompound("chunks");
@@ -230,7 +234,8 @@ public class SableContraptionData {
                 fullTag.contains("user_data") ? fullTag.getCompound("user_data") : null,
                 fullTag,
                 isloaded,
-                level.dimension()
+                level.dimension(),
+                locked
         );
 
         for (final String key : chunksTag.getAllKeys()) {
@@ -336,6 +341,14 @@ public class SableContraptionData {
 
     public ResourceKey<Level> dimension() {
         return this.dimension;
+    }
+
+    /**
+     * Whether the physics staff is currently holding this contraption. Resolved on the server
+     * and shipped with the payload, so the client never has to reach into server state to ask.
+     */
+    public boolean isLocked() {
+        return this.locked;
     }
 
     public int chunkCount() {

@@ -3,10 +3,13 @@ package com.mas6y6.sablefinder.simulated;
 import com.mas6y6.sablefinder.SableFinder;
 import com.mas6y6.sablefinder.mixininterface.ISFPhysicsStaffServerHandler;
 import dev.simulated_team.simulated.content.physics_staff.PhysicsStaffServerHandler;
+import net.minecraft.server.MinecraftServer;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
 
 public class SimulatedCompat {
     private static SimulatedCompat INSTANCE;
@@ -41,13 +44,23 @@ public class SimulatedCompat {
         return true;
     }
 
-    public @Nullable ISFPhysicsStaffServerHandler getPhysicsStaffServerHandler() {
-        var level = SableFinder.getServer().overworld();
+
+    public @Nullable ISFPhysicsStaffServerHandler getPhysicsStaffServerHandler(@Nullable MinecraftServer server) {
+        if (server == null) {
+            return null;
+        }
+
+        var level = server.overworld();
 
         if (PhysicsStaffServerHandler.get(level) instanceof ISFPhysicsStaffServerHandler handler) {
             return handler;
         }
 
         return null;
+    }
+    public @NotNull Set<UUID> getLockedContraptions(@Nullable MinecraftServer server) {
+        final ISFPhysicsStaffServerHandler handler = getPhysicsStaffServerHandler(server);
+
+        return handler == null ? Set.of() : handler.lockedContraptions();
     }
 }

@@ -867,14 +867,11 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
         )));
 
         if (SimulatedCompat.isSimulatedInstalled()) {
-            var handler = SimulatedCompat.getInstance().get().getPhysicsStaffServerHandler();
-            var islocked = handler.isContraptionLocked(selectedUuid);
-
             row.child(Components.spacer(5));
             row.child(Components.label(Component.translatable("sablefinder.ui.simulated")));
             row.child(Components.label(Component.translatable("sablefinder.ui.islocked")));
             row.child(Components.label(Component.translatable(
-                    islocked ? "sablefinder.ui.true" : "sablefinder.ui.false"
+                    data.isLocked() ? "sablefinder.ui.true" : "sablefinder.ui.false"
             )));
         }
 
@@ -935,19 +932,24 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
         if (SimulatedCompat.isSimulatedInstalled()) {
             card.child(Components.spacer(5));
             card.child(OwoUtils.wrappingLabel(Component.translatable("sablefinder.ui.simulated_actions")));
-            var handler = SimulatedCompat.getInstance().get().getPhysicsStaffServerHandler();
-            var islocked = handler.isContraptionLocked(selectedUuid);
 
             var lockbutton = OwoUtils.fullWidthButton(
-                    Component.translatable(islocked ? "sablefinder.ui.button.unlock_contraption" : "sablefinder.ui.button.lock_contraption"),
+                    Component.translatable(data.isLocked()
+                            ? "sablefinder.ui.button.unlock_contraption"
+                            : "sablefinder.ui.button.lock_contraption"),
                     button -> {
-                        if (islocked) {
-                            handler.unlockContraption(selectedUuid);
-                        } else {
-                            handler.lockContraption(selectedUuid);
-                        }
+                        // The server owns the physics staff; ask it to flip the lock and redraw
+                        // from the payload it sends back.
+                        button.active = false;
 
-                        selectContraption(selectedUuid); // reload selected contraption
+                        SableContraptionClient.setLocked(data.uuid(), !data.isLocked())
+                                .whenComplete((updated, error) -> onMainThread(() -> {
+                                    if (error != null || !Objects.equals(selectedUuid, data.uuid())) {
+                                        return;
+                                    }
+
+                                    selectContraption(data.uuid()); // reload selected contraption
+                                }));
                     }
             );
             card.child(lockbutton);
