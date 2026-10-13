@@ -75,7 +75,7 @@ public record SearchFilters(
                 false,
                 false, "",
                 false, "",
-                false, BlockSearchMethod.GREATER_THEN, 0, 0,
+                false, BlockSearchMethod.LESS_THEN_OR_EQUAL, 0, 0,
                 false, new ArrayList<>()
         );
     }

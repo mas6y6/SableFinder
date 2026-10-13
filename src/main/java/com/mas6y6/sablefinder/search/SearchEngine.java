@@ -84,7 +84,7 @@ public class SearchEngine {
     private static @NotNull CompoundTag search(@NotNull List<SableContraptionData> contraptions, @NotNull SearchFilters filters, @NotNull AtomicBoolean cancelled) {
         final Pattern namePattern = filters.useNameSearch() ? globToPattern(filters.nameSearch()) : null;
         final Pattern uuidPattern = filters.useUUIDSearch() ? globToPattern(filters.uuidSearch()) : null;
-        final Map<ResourceLocation, Integer> requiredBlocks = filters.useBlockSearch()
+        final Map<ResourceLocation, BlockFilter> requiredBlocks = filters.useBlockSearch()
                 ? requiredBlockCounts(filters.blockFilters())
                 : null;
 
@@ -103,18 +103,18 @@ public class SearchEngine {
         return SableUtils.buildContraptionsTag(matches);
     }
 
-    private static @NotNull Map<ResourceLocation, Integer> requiredBlockCounts(@NotNull List<BlockFilter> blockFilters) {
-        final Map<ResourceLocation, Integer> required = new HashMap<>();
+    private static @NotNull Map<ResourceLocation, BlockFilter> requiredBlockCounts(@NotNull List<BlockFilter> blockFilters) {
+        final Map<ResourceLocation, BlockFilter> required = new HashMap<>();
 
         for (final BlockFilter filter : blockFilters) {
-            required.merge(filter.block(), Math.max(filter.minCount(), 1), Math::max);
+            required.put(filter.block(), filter);
         }
 
         return required;
     }
 
     private static boolean matches(@NotNull SableContraptionData contraption, @NotNull SearchFilters filters,
-                                   @Nullable Pattern namePattern, @Nullable Pattern uuidPattern, @Nullable Map<ResourceLocation, Integer> requiredBlocks) {
+                                   @Nullable Pattern namePattern, @Nullable Pattern uuidPattern, @Nullable Map<ResourceLocation, BlockFilter> requiredBlocks) {
         if (namePattern != null) {
             final String name = contraption.displayName() != null ? contraption.displayName() : "";
             if (!namePattern.matcher(name).matches()) {
@@ -134,7 +134,7 @@ public class SearchEngine {
     }
 
     private static boolean matchesBlocks(@NotNull SableContraptionData contraption, @NotNull SearchFilters filters,
-                                         @Nullable Map<ResourceLocation, Integer> requiredBlocks) {
+                                         @Nullable Map<ResourceLocation, BlockFilter> requiredBlocks) {
         final int[] total = {0};
         final Map<ResourceLocation, Integer> found = new HashMap<>();
 
@@ -154,8 +154,8 @@ public class SearchEngine {
         }
 
         if (requiredBlocks != null) {
-            for (final Map.Entry<ResourceLocation, Integer> requirement : requiredBlocks.entrySet()) {
-                if (found.getOrDefault(requirement.getKey(), 0) < requirement.getValue()) {
+            for (final BlockFilter requirement : requiredBlocks.values()) {
+                if (!requirement.matches(found.getOrDefault(requirement.block(), 0))) {
                     return false;
                 }
             }
@@ -165,12 +165,15 @@ public class SearchEngine {
     }
 
     private static boolean matchesBlockSize(@NotNull SearchFilters filters, int blockCount) {
-        final int requested = filters.blockSize();
-        return switch (filters.blockSearchMethod()) {
-            case EQUAL -> blockCount == requested;
-            case LESS_THEN -> blockCount < requested;
-            case GREATER_THEN -> blockCount > requested;
-            case BETWEEN -> blockCount >= requested && blockCount <= filters.blockSizeMax();
+        return matchesCount(filters.blockSearchMethod(), filters.blockSize(), filters.blockSizeMax(), blockCount);
+    }
+
+    public static boolean matchesCount(@NotNull BlockSearchMethod method, int min, int max, int actual) {
+        return switch (method) {
+            case EQUAL -> actual == min;
+            case LESS_THEN_OR_EQUAL -> actual <= min;
+            case AT_LEAST_OR_EQUAL -> actual >= min;
+            case BETWEEN -> actual >= min && actual <= max;
         };
     }
 

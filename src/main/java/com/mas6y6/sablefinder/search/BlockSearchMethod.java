@@ -7,9 +7,9 @@ import org.jetbrains.annotations.NotNull;
 
 public enum BlockSearchMethod {
     EQUAL(1),
-    LESS_THEN(2),
-    GREATER_THEN(3),
-    BETWEEN(4);
+    LESS_THEN_OR_EQUAL(2),
+    BETWEEN(3),
+    AT_LEAST_OR_EQUAL(4);
 
     public static final StreamCodec<ByteBuf, BlockSearchMethod> STREAM_CODEC =
             ByteBufCodecs.idMapper(BlockSearchMethod::byId, BlockSearchMethod::getId);
