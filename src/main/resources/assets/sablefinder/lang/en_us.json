@@ -150,6 +150,8 @@
   "sablefinder.message.not_player": "You must be a player to use this command.",
   "sablefinder.message.no_permission": "You do not have permission to use this command.",
   "sablefinder.message.client_mod_missing": "The client does not have the SableFinder mod installed.",
+  "sablefinder.message.version_mismatch.title": "§cOutdated SableFinder",
+  "sablefinder.message.version_mismatch.body": "Your SableFinder version (%s) does not match the server's (%s). Please update to the same version.",
   "sablefinder.message.invalid_uuid": "Must be a valid UUID",
   "sablefinder.message.load_error": "An error occurred while loading contraptions: %s",
   "sablefinder.message.command_error": "An error occurred while executing the SableFinder command: %s",

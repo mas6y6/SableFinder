@@ -1,6 +1,7 @@
 package com.mas6y6.sablefinder.networking;
 
 import com.mas6y6.sablefinder.SableFinder;
+import com.mas6y6.sablefinder.client.ClientPayloadHandler;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.core.UUIDUtil;
 import net.minecraft.network.codec.ByteBufCodecs;
@@ -12,11 +13,8 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.UUID;
 
-/**
- * Performs the mod-presence handshake in both directions. The server sends one to ask whether the
- * client has the mod; the client answers with the same packet carrying {@code isClientHasMod}.
- */
-public record CheckExistencePacket(UUID requestId, boolean isServerHasMod, boolean isClientHasMod)
+
+public record CheckExistencePacket(UUID requestId, boolean isServerHasMod, boolean isClientHasMod, String serverVersion, String clientVersion)
         implements RequestPayload<CheckExistencePacket>, ResponsePayload {
     public static final CustomPacketPayload.Type<CheckExistencePacket> TYPE =
             new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath(SableFinder.MODID, "check_existence"));
@@ -28,6 +26,10 @@ public record CheckExistencePacket(UUID requestId, boolean isServerHasMod, boole
             CheckExistencePacket::isServerHasMod,
             ByteBufCodecs.BOOL,
             CheckExistencePacket::isClientHasMod,
+            ByteBufCodecs.STRING_UTF8,
+            CheckExistencePacket::serverVersion,
+            ByteBufCodecs.STRING_UTF8,
+            CheckExistencePacket::clientVersion,
             CheckExistencePacket::new
     );
 
@@ -47,8 +49,16 @@ public record CheckExistencePacket(UUID requestId, boolean isServerHasMod, boole
 
     public static void handleClient(@NotNull CheckExistencePacket packet, @NotNull IPayloadContext iPayloadContext) {
         iPayloadContext.enqueueWork(() -> {
+            ClientPayloadHandler.setServerVersion(packet.serverVersion());
+
             if (packet.isServerHasMod()) {
-                iPayloadContext.reply(new CheckExistencePacket(packet.requestId(), true, true));
+                iPayloadContext.reply(new CheckExistencePacket(
+                        packet.requestId(),
+                        true,
+                        true,
+                        packet.serverVersion(),
+                        SableFinder.getVersion()
+                ));
             }
         });
     }

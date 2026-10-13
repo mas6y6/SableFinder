@@ -1,6 +1,7 @@
 package com.mas6y6.sablefinder;
 
 import com.mas6y6.sablefinder.networking.CheckExistencePacket;
+import com.mas6y6.sablefinder.networking.ClientMessagePacket;
 import com.mas6y6.sablefinder.networking.OpenGUIPacket;
 import com.mas6y6.sablefinder.networking.PacketRequests;
 import com.mas6y6.sablefinder.sable.SableUtils;
@@ -14,6 +15,7 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.neoforge.network.PacketDistributor;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.Objects;
 import java.util.Optional;
@@ -66,9 +68,14 @@ public class SFCommands {
             if (entity instanceof ServerPlayer player) {
                 MinecraftServer server = context.getSource().getServer();
                 CompletableFuture.supplyAsync(() -> awaitClientResponse(player))
-                        .thenAcceptAsync(clientHasMod -> {
-                            if (!clientHasMod) {
+                        .thenAcceptAsync(response -> {
+                            if (response == null) {
                                 context.getSource().sendFailure(Component.translatable("sablefinder.message.client_mod_missing"));
+                                return;
+                            }
+
+                            if (!isVersionCompatible(response)) {
+                                notifyVersionMismatch(player, response);
                                 return;
                             }
 
@@ -119,9 +126,14 @@ public class SFCommands {
             if (entity instanceof ServerPlayer player) {
                 MinecraftServer server = context.getSource().getServer();
                 CompletableFuture.supplyAsync(() -> awaitClientResponse(player))
-                        .thenAcceptAsync(clientHasMod -> {
-                            if (!clientHasMod) {
+                        .thenAcceptAsync(response -> {
+                            if (response == null) {
                                 context.getSource().sendFailure(Component.translatable("sablefinder.message.client_mod_missing"));
+                                return;
+                            }
+
+                            if (!isVersionCompatible(response)) {
+                                notifyVersionMismatch(player, response);
                                 return;
                             }
 
@@ -148,19 +160,49 @@ public class SFCommands {
         return 0;
     }
 
-    private static boolean awaitClientResponse(@NotNull ServerPlayer player) {
+    private static @Nullable CheckExistencePacket awaitClientResponse(@NotNull ServerPlayer player) {
         final UUID requestId = PacketRequests.newId();
         try {
-            return PacketRequests.sendToPlayer(player, new CheckExistencePacket(requestId, true, false))
-                    .get(RESPONSE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
-                    .isClientHasMod();
+            final CheckExistencePacket response = PacketRequests
+                    .sendToPlayer(player, new CheckExistencePacket(requestId, true, false, SableFinder.getVersion(), ""))
+                    .get(RESPONSE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+
+            return response.isClientHasMod() ? response : null;
         } catch (TimeoutException e) {
             PacketRequests.cancel(requestId);
-            return false;
+            return null;
         } catch (Exception e) {
             PacketRequests.cancel(requestId);
             SableFinder.LOGGER.error("An error occurred while verifying that the client has the SableFinder mod installed", e);
-            return false;
+            return null;
         }
+    }
+
+    private static boolean isVersionCompatible(@NotNull CheckExistencePacket response) {
+        final String serverVersion = SableFinder.getVersion();
+        final String clientVersion = response.clientVersion();
+
+        if (serverVersion.equals(clientVersion)) {
+            return true;
+        }
+
+        SableFinder.LOGGER.warn(
+                "Refusing to open the SableFinder UI for a client running version {} while the server runs {}",
+                clientVersion,
+                serverVersion
+        );
+
+        return false;
+    }
+
+    private static void notifyVersionMismatch(@NotNull ServerPlayer player, @NotNull CheckExistencePacket response) {
+        PacketDistributor.sendToPlayer(player, new ClientMessagePacket(
+                Component.translatable("sablefinder.message.version_mismatch.title"),
+                Component.translatable(
+                        "sablefinder.message.version_mismatch.body",
+                        response.clientVersion(),
+                        SableFinder.getVersion()
+                )
+        ));
     }
 }

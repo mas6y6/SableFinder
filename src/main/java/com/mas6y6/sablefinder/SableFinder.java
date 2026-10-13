@@ -31,7 +31,11 @@ public class SableFinder {
     public static final Logger LOGGER = LogUtils.getLogger();
     private static @Nullable MinecraftServer server;
 
+    // Resolved from the loaded mod metadata, so it always matches the jar's mod_version.
+    private static String version = "unknown";
+
     public SableFinder(@NotNull IEventBus modEventBus, @NotNull ModContainer modContainer) {
+        version = modContainer.getModInfo().getVersion().toString();
         modContainer.registerConfig(ModConfig.Type.SERVER, ConfigServer.SPEC);
         modEventBus.register(this);
         NeoForge.EVENT_BUS.addListener(this::onCommandRegister);
@@ -56,6 +60,14 @@ public class SableFinder {
 
     public static @Nullable MinecraftServer getServer() {
         return server;
+    }
+
+    /**
+     * The sableFinder version of the side this JVM is running. Both sides compare this
+     * string during the handshake to make sure they are running the same build.
+     */
+    public static @NotNull String getVersion() {
+        return version;
     }
 
     private void onServerStart(@NotNull ServerStartedEvent event) {
