@@ -31,7 +31,7 @@ public record ClientMessagePacket(Component title,Component message) implements 
         return TYPE;
     }
 
-    public static void handleClient(ClientMessagePacket packet,IPayloadContext iPayloadContext) {
+    public static void handleClient(@NotNull ClientMessagePacket packet, @NotNull IPayloadContext iPayloadContext) {
         iPayloadContext.enqueueWork(() -> {
             SystemToast.addOrUpdate(Minecraft.getInstance().getToasts(), SableFinderClient.SYSTEM_TOAST_ID, packet.title(), packet.message());
         });

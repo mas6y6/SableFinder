@@ -3,6 +3,7 @@ package com.mas6y6.sablefinder.client;
 import com.mas6y6.sablefinder.Keybinds;
 import com.mas6y6.sablefinder.networking.DeleteContraptionPacket;
 import com.mas6y6.sablefinder.sable.SableContraptionData;
+import com.mas6y6.sablefinder.simulated.SimulatedCompat;
 import com.mas6y6.sablefinder.utils.TagFormatter;
 import dev.ryanhcode.sable.companion.math.BoundingBox3d;
 import dev.ryanhcode.sable.companion.math.Pose3d;
@@ -27,28 +28,25 @@ import org.joml.Vector3d;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.Consumer;
 
 public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
 
     private static final int COLLAPSED_SIDEBAR_WIDTH = 10;
     private static final int SCROLLBAR_RIGHT_PADDING = 8;
 
-    private CompoundTag sableContraptions;
+    private @Nullable CompoundTag sableContraptions;
 
     private final List<ContraptionEntry> contraptions = new ArrayList<>();
 
     private final List<ContraptionItem> listItems = new ArrayList<>();
 
-    private final UUID initiallySelectedId;
+    private final @Nullable UUID initiallySelectedId;
 
     private LabelComponent foundCountLabel;
     private LabelComponent indexString;
@@ -59,16 +57,18 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
     private FlowLayout sidebarTop;
     private FlowLayout detailsPanel;
     private ScrollContainer<FlowLayout> listScroll;
-    private ButtonComponent reloadButton;
+    private ButtonComponent refreshButton;
 
     private boolean leftSidebarCollapsed = false;
     private boolean rightSidebarCollapsed = false;
-    private UUID selectedUuid = null;
+    private @Nullable UUID selectedUuid = null;
     private int selectedContraptionIndex = 0;
+    private boolean isSearchResults = false;
+    private boolean reloading = false;
 
     public SableFinderScreen(
             @Nullable CompoundTag sableContraptions,
-            Optional<UUID> selectedContraptionID
+            @NotNull Optional<UUID> selectedContraptionID
     ) {
         this.sableContraptions = sableContraptions;
         this.initiallySelectedId = selectedContraptionID.orElse(null);
@@ -89,7 +89,9 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
         return OwoUIAdapter.create(this, Containers::verticalFlow);
     }
 
-    private void reloadContraptions() {
+    // Gets normal contraptions from the server
+    private void resetAndRefreshContraptions() {
+        this.isSearchResults = false;
         setReloadingState(true);
 
         SableContraptionClient.requestContraptionList().whenComplete((tag, error) ->
@@ -105,6 +107,8 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
     }
 
     public void applySearchResults(@Nullable CompoundTag tag) {
+        this.isSearchResults = true;
+        updateRefreshButton();
         applyContraptions(tag);
     }
 
@@ -125,7 +129,6 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
         }
     }
 
-    /** Selects by list position, for the next/previous keybinds. */
     private void selectContraption(int index) {
         if (index < 0 || index >= contraptions.size()) {
             return;
@@ -135,7 +138,6 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
         selectContraption(contraptions.get(index).uuid());
     }
 
-    /** Selects by uuid, fetches that contraption's details, and renders them. */
     private void selectContraption(UUID uuid) {
         this.selectedUuid = uuid;
         this.selectedContraptionIndex = indexOfContraption(uuid);
@@ -155,18 +157,19 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
                     if (error != null || data == null) {
                         showRequestError("sablefinder.ui.error.load_contraption", error);
                     } else {
+                        detailsContent.clearChildren();
                         displayContraptionDetails(data);
                     }
                 }));
     }
 
-    private void onMainThread(Runnable action) {
+    private void onMainThread(@NotNull Runnable action) {
         if (this.minecraft != null) {
             this.minecraft.execute(action);
         }
     }
 
-    private void showRequestError(String translationKey, Throwable error) {
+    private void showRequestError(@NotNull String translationKey, @Nullable Throwable error) {
         showError(Component.translatable(
                 translationKey,
                 error != null && error.getMessage() != null
@@ -176,12 +179,32 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
     }
 
     private void setReloadingState(boolean reloading) {
-        if (reloadButton != null) {
-            reloadButton.active = !reloading;
-            reloadButton.setMessage(Component.translatable(
-                    reloading ? "sablefinder.ui.button.reloading" : "sablefinder.ui.button.reload"
+        this.reloading = reloading;
+
+        if (refreshButton != null) {
+            refreshButton.active = !reloading;
+            updateRefreshButton();
+        }
+    }
+
+    private void updateRefreshButton() {
+        if (refreshButton == null) {
+            return;
+        }
+
+        if (reloading) {
+            refreshButton.setMessage(Component.translatable("sablefinder.ui.button.refreshing"));
+        } else {
+            refreshButton.setMessage(Component.translatable(
+                    isSearchResults ? "sablefinder.ui.button.reset" : "sablefinder.ui.button.refresh"
             ));
         }
+
+        refreshButton.tooltip(Component.translatable(
+                isSearchResults
+                        ? "sablefinder.ui.tooltip.clear_filters"
+                        : "sablefinder.ui.tooltip.refreshButton"
+        ));
     }
 
     // ============================================================
@@ -231,7 +254,7 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
         }
     }
 
-    private static UUID readUuid(CompoundTag tag) {
+    private static @Nullable UUID readUuid(@NotNull CompoundTag tag) {
         if (tag.hasUUID("uuid")) {
             return tag.getUUID("uuid");
         }
@@ -258,7 +281,7 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
         }
 
         if (Keybinds.REFRESH_KEY.get().matches(keyCode, scanCode)) {
-            reloadContraptions();
+            resetAndRefreshContraptions();
             return true;
         }
 
@@ -278,7 +301,7 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
     }
 
     @Override
-    protected void build(FlowLayout rootComponent) {
+    protected void build(@NotNull FlowLayout rootComponent) {
         rootComponent
                 .surface(Surface.VANILLA_TRANSLUCENT)
                 .horizontalAlignment(HorizontalAlignment.CENTER)
@@ -320,7 +343,7 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
         selectContraption(initialUuid != null ? initialUuid : contraptions.getFirst().uuid());
     }
 
-    private FlowLayout buildHeader() {
+    private @NotNull FlowLayout buildHeader() {
         FlowLayout header = Containers.horizontalFlow(
                 Sizing.fill(100),
                 Sizing.fixed(20)
@@ -344,7 +367,7 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
         return header;
     }
 
-    private FlowLayout buildFooter() {
+    private @NotNull FlowLayout buildFooter() {
         FlowLayout footer = Containers.horizontalFlow(
                 Sizing.fill(100),
                 Sizing.fixed(24)
@@ -354,30 +377,30 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
         footer.padding(Insets.horizontal(8));
         footer.gap(4);
 
-        footer.child(Components.label(
-                Component.translatable(
-                        "sablefinder.ui.footer.hint",
-                        Keybinds.GO_TO_NEXT_CONTRAPTION_KEY.get().getKey().getDisplayName(),
-                        Keybinds.GO_TO_PREVIOUS_CONTRAPTION_KEY.get().getKey().getDisplayName()
-                ).withColor(0x555555)
-        ));
-        footer.child(Components.spacer());
-
-        reloadButton = Components.button(
-                Component.translatable("sablefinder.ui.button.reload"),
-                button -> reloadContraptions()
+        refreshButton = Components.button(
+                Component.translatable("sablefinder.ui.button.refresh"),
+                button -> resetAndRefreshContraptions()
         );
-        reloadButton.horizontalSizing(Sizing.fixed(40));
-        reloadButton.verticalSizing(Sizing.fixed(20));
-        footer.child(reloadButton);
+        updateRefreshButton();
+        refreshButton.horizontalSizing(Sizing.fixed(60));
+        refreshButton.verticalSizing(Sizing.fixed(17));
+        footer.child(refreshButton);
 
         ButtonComponent closeButton = Components.button(
                 Component.translatable("sablefinder.ui.button.close"),
                 button -> onClose()
         );
         closeButton.horizontalSizing(Sizing.fixed(40));
-        closeButton.verticalSizing(Sizing.fixed(20));
+        closeButton.verticalSizing(Sizing.fixed(17));
         footer.child(closeButton);
+
+        ButtonComponent guideButton = Components.button(
+                Component.translatable("sablefinder.ui.button.guide"),
+                button -> onClose()
+        );
+        guideButton.horizontalSizing(Sizing.fixed(40));
+        guideButton.verticalSizing(Sizing.fixed(17));
+        footer.child(guideButton);
 
         return footer;
     }
@@ -412,7 +435,7 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
 
         ButtonComponent clearButton = Components.button(
                 Component.translatable("sablefinder.ui.button.clear"),
-                button -> reloadContraptions()
+                button -> resetAndRefreshContraptions()
         );
         clearButton.tooltip(Component.translatable("sablefinder.ui.tooltip.clear_filters"));
         clearButton.horizontalSizing(Sizing.fixed(12));
@@ -477,7 +500,7 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
         }
     }
 
-    private FlowLayout buildPreviewPanel() {
+    private @NotNull FlowLayout buildPreviewPanel() {
         FlowLayout previewPanel = Containers.verticalFlow(
                 Sizing.expand(),
                 Sizing.fill(100)
@@ -527,7 +550,7 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
         return detailsPanel;
     }
 
-    private Sizing detailsSizing() {
+    private @NotNull Sizing detailsSizing() {
         if (rightSidebarCollapsed) {
             return Sizing.fixed(COLLAPSED_SIDEBAR_WIDTH);
         }
@@ -539,7 +562,7 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
         if (indexString != null) {
             indexString.text(Component.translatable(
                     "sablefinder.ui.index",
-                    selectedContraptionIndex + 1,
+                    contraptions.isEmpty() ? 0 : selectedContraptionIndex + 1,
                     contraptions.size()
             ));
         }
@@ -574,7 +597,7 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
         }
     }
 
-    private FlowLayout buildListRow(ContraptionEntry entry) {
+    private @NotNull FlowLayout buildListRow(@NotNull ContraptionEntry entry) {
         FlowLayout item = Containers.verticalFlow(
                 Sizing.fill(100),
                 Sizing.content()
@@ -634,7 +657,7 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
         }
     }
 
-    private void applyItemStyle(ContraptionItem listItem) {
+    private void applyItemStyle(@NotNull ContraptionItem listItem) {
         boolean isSelected = listItem.uuid().equals(selectedUuid);
 
         listItem.root().surface(
@@ -662,6 +685,7 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
 
     private void setDetails(FlowLayout content) {
         if (detailsContent == null) {
+            detailsContent.clearChildren();
             return;
         }
 
@@ -682,13 +706,13 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
         );
         placeholder.padding(Insets.of(6));
         placeholder.gap(4);
-        placeholder.child(Components.label(Component.translatable("sablefinder.ui.details.none")));
-        placeholder.child(Components.label(Component.translatable("sablefinder.ui.details.none_hint")));
+        placeholder.child(OwoUtils.wrappingLabel(Component.translatable("sablefinder.ui.details.none")));
+        placeholder.child(OwoUtils.wrappingLabel(Component.translatable("sablefinder.ui.details.none_hint")));
 
         setDetails(placeholder);
     }
 
-    private void showError(Component message) {
+    private void showError(@NotNull Component message) {
         clearPreview();
 
         if (detailsContent == null) {
@@ -701,8 +725,8 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
         );
         errorBox.padding(Insets.of(6));
         errorBox.gap(4);
-        errorBox.child(Components.label(Component.translatable("sablefinder.ui.error.title")));
-        errorBox.child(Components.label(Component.literal("§c").append(message)));
+        errorBox.child(OwoUtils.wrappingLabel(Component.translatable("sablefinder.ui.error.title")));
+        errorBox.child(OwoUtils.wrappingLabel(Component.literal("§c").append(message)));
 
         if (selectedUuid != null) {
             ButtonComponent retryButton = Components.button(
@@ -717,14 +741,19 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
         setDetails(errorBox);
     }
 
-    private FlowLayout centeredLabel(String translationKey) {
+    private @NotNull FlowLayout centeredLabel(@NotNull String translationKey) {
         FlowLayout wrapper = Containers.verticalFlow(
                 Sizing.fill(100),
                 Sizing.content()
         );
         wrapper.padding(Insets.of(4));
         wrapper.horizontalAlignment(HorizontalAlignment.CENTER);
-        wrapper.child(Components.label(Component.translatable(translationKey)));
+
+        // fill(100) so the text can actually wrap inside the wrapper - a content-sized label
+        // would sit at its full width and overflow instead.
+        LabelComponent label = OwoUtils.wrappingLabel(Component.translatable(translationKey));
+        label.horizontalTextAlignment(HorizontalAlignment.CENTER);
+        wrapper.child(label);
 
         return wrapper;
     }
@@ -733,7 +762,7 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
     // DETAILS VIEW
     // ============================================================
 
-    private void displayContraptionDetails(SableContraptionData data) {
+    private void displayContraptionDetails(@NotNull SableContraptionData data) {
         clearPreview();
 
         Contraption3DViewComponent preview3d = new Contraption3DViewComponent(data);
@@ -748,7 +777,7 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
         detailsContent.child(buildDebugCard(data));
     }
 
-    private void buildPreview(Contraption3DViewComponent preview3d) {
+    private void buildPreview(@NotNull Contraption3DViewComponent preview3d) {
         FlowLayout toolbar = Containers.horizontalFlow(
                 Sizing.fill(100),
                 Sizing.fixed(18)
@@ -757,24 +786,24 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
         toolbar.gap(2);
 
         ButtonComponent autoRotateButton = Components.button(
-                rotateLabel(preview3d.isAutoRotate()),
+                OwoUtils.rotateLabel(preview3d.isAutoRotate()),
                 button -> {
                     preview3d.toggleAutoRotate();
-                    button.setMessage(rotateLabel(preview3d.isAutoRotate()));
+                    button.setMessage(OwoUtils.rotateLabel(preview3d.isAutoRotate()));
                 }
         );
         autoRotateButton.horizontalSizing(Sizing.fixed(45));
         autoRotateButton.verticalSizing(Sizing.fixed(18));
 
         preview3d.setOnAutoRotateChanged(
-                enabled -> autoRotateButton.setMessage(rotateLabel(enabled))
+                enabled -> autoRotateButton.setMessage(OwoUtils.rotateLabel(enabled))
         );
 
         ButtonComponent wireframeButton = Components.button(
-                wireframeLabel(preview3d.isShowBoundingBox()),
+                OwoUtils.wireframeLabel(preview3d.isShowBoundingBox()),
                 button -> {
                     preview3d.toggleBoundingBox();
-                    button.setMessage(wireframeLabel(preview3d.isShowBoundingBox()));
+                    button.setMessage(OwoUtils.wireframeLabel(preview3d.isShowBoundingBox()));
                 }
         );
         wireframeButton.horizontalSizing(Sizing.fixed(45));
@@ -800,13 +829,13 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
         top3dContainer.child(preview3d);
     }
 
-    private FlowLayout buildIdentityCard(SableContraptionData data) {
+    private @NotNull FlowLayout buildIdentityCard(@NotNull SableContraptionData data) {
         Component name = data.displayName() != null && !data.displayName().isEmpty()
                 ? Component.literal(data.displayName())
                 : Component.translatable("sablefinder.ui.untitled", data.uuid().toString().substring(0, 8));
 
-        FlowLayout card = createSectionCard(Component.literal("§e").append(name));
-        card.child(createCopyButton(name));
+        FlowLayout card = OwoUtils.createSectionCard(Component.literal("§e").append(name));
+        card.child(OwoUtils.createCopyButton(name));
 
         FlowLayout row = Containers.verticalFlow(
                 Sizing.fill(100),
@@ -816,7 +845,7 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
 
         row.child(Components.label(Component.translatable("sablefinder.ui.uuid")));
         row.child(Components.label(Component.literal("§f" + data.uuid())));
-        row.child(createCopyButton(Component.literal(data.uuid().toString())));
+        row.child(OwoUtils.createCopyButton(Component.literal(data.uuid().toString())));
 
         row.gap(2);
         row.child(Components.label(Component.translatable("sablefinder.ui.dimension")));
@@ -828,7 +857,7 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
         row.child(Components.label(Component.literal("§f").append(dimensionValue)));
 
         if (data.dimension() != null) {
-            row.child(createCopyButton(Component.literal(data.dimension().location().toString())));
+            row.child(OwoUtils.createCopyButton(Component.literal(data.dimension().location().toString())));
         }
 
         row.gap(2);
@@ -837,17 +866,29 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
                 data.isLoaded() ? "sablefinder.ui.true" : "sablefinder.ui.false"
         )));
 
+        if (SimulatedCompat.isSimulatedInstalled()) {
+            var handler = SimulatedCompat.getInstance().get().getPhysicsStaffServerHandler();
+            var islocked = handler.isContraptionLocked(selectedUuid);
+
+            row.child(Components.spacer(5));
+            row.child(Components.label(Component.translatable("sablefinder.ui.simulated")));
+            row.child(Components.label(Component.translatable("sablefinder.ui.islocked")));
+            row.child(Components.label(Component.translatable(
+                    islocked ? "sablefinder.ui.true" : "sablefinder.ui.false"
+            )));
+        }
+
         card.child(row);
 
         return card;
     }
 
-    private FlowLayout buildActionsCard(SableContraptionData data) {
-        FlowLayout card = createSectionCard(
+    private @NotNull FlowLayout buildActionsCard(@NotNull SableContraptionData data) {
+        FlowLayout card = OwoUtils.createSectionCard(
                 Component.translatable("sablefinder.ui.section.actions")
         );
 
-        card.child(fullWidthButton(
+        card.child(OwoUtils.fullWidthButton(
                 Component.translatable("sablefinder.ui.button.teleport"),
                 button -> {
                     Minecraft minecraft = Minecraft.getInstance();
@@ -864,7 +905,7 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
                 }
         ));
 
-        card.child(fullWidthButton(
+        card.child(OwoUtils.fullWidthButton(
                 Component.translatable("sablefinder.ui.button.copy_coords"),
                 button -> {
                     button.setMessage(Component.translatable("sablefinder.ui.copied_exclaim"));
@@ -877,7 +918,7 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
         // Two-step delete: the first click arms it, the second actually deletes.
         AtomicBoolean confirmDelete = new AtomicBoolean(false);
 
-        card.child(fullWidthButton(
+        card.child(OwoUtils.fullWidthButton(
                 Component.translatable("sablefinder.ui.button.delete"),
                 button -> {
                     if (!confirmDelete.get()) {
@@ -887,15 +928,36 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
                     }
 
                     PacketDistributor.sendToServer(new DeleteContraptionPacket(data.uuid()));
-                    reloadContraptions();
+                    resetAndRefreshContraptions();
                 }
         ));
+
+        if (SimulatedCompat.isSimulatedInstalled()) {
+            card.child(Components.spacer(5));
+            card.child(OwoUtils.wrappingLabel(Component.translatable("sablefinder.ui.simulated_actions")));
+            var handler = SimulatedCompat.getInstance().get().getPhysicsStaffServerHandler();
+            var islocked = handler.isContraptionLocked(selectedUuid);
+
+            var lockbutton = OwoUtils.fullWidthButton(
+                    Component.translatable(islocked ? "sablefinder.ui.button.unlock_contraption" : "sablefinder.ui.button.lock_contraption"),
+                    button -> {
+                        if (islocked) {
+                            handler.unlockContraption(selectedUuid);
+                        } else {
+                            handler.lockContraption(selectedUuid);
+                        }
+
+                        selectContraption(selectedUuid); // reload selected contraption
+                    }
+            );
+            card.child(lockbutton);
+        }
 
         return card;
     }
 
-    private FlowLayout buildPoseCard(SableContraptionData data) {
-        FlowLayout card = createSectionCard(
+    private @NotNull FlowLayout buildPoseCard(@NotNull SableContraptionData data) {
+        FlowLayout card = OwoUtils.createSectionCard(
                 Component.translatable("sablefinder.ui.section.position_pose")
         );
 
@@ -905,7 +967,7 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
             Vector3d position = pose.position();
             Vector3d scale = pose.scale();
 
-            card.child(createDataRow(
+            card.child(OwoUtils.createDataRow(
                     Component.translatable("sablefinder.ui.data.position"),
                     Component.literal(String.format(
                             Locale.ROOT, "§c%.2f, §a%.2f, §b%.2f",
@@ -913,7 +975,7 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
                     ))
             ));
 
-            card.child(createDataRow(
+            card.child(OwoUtils.createDataRow(
                     Component.translatable("sablefinder.ui.data.scale"),
                     Component.literal(String.format(
                             Locale.ROOT, "%.2f × %.2f × %.2f",
@@ -925,7 +987,7 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
         BoundingBox3d bounds = data.bounds();
 
         if (bounds != null) {
-            card.child(createDataRow(
+            card.child(OwoUtils.createDataRow(
                     Component.translatable("sablefinder.ui.data.bounds_min"),
                     Component.literal(String.format(
                             Locale.ROOT, "%.1f, %.1f, %.1f",
@@ -933,7 +995,7 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
                     ))
             ));
 
-            card.child(createDataRow(
+            card.child(OwoUtils.createDataRow(
                     Component.translatable("sablefinder.ui.data.bounds_max"),
                     Component.literal(String.format(
                             Locale.ROOT, "%.1f, %.1f, %.1f",
@@ -941,7 +1003,7 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
                     ))
             ));
 
-            card.child(createDataRow(
+            card.child(OwoUtils.createDataRow(
                     Component.translatable("sablefinder.ui.data.dimensions"),
                     Component.literal(String.format(
                             Locale.ROOT, "%.1f × %.1f × %.1f",
@@ -953,7 +1015,7 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
         }
 
         if (data.originChunk() != null) {
-            card.child(createDataRow(
+            card.child(OwoUtils.createDataRow(
                     Component.translatable("sablefinder.ui.data.origin_chunk"),
                     Component.literal(data.originChunk().x + ", " + data.originChunk().z)
             ));
@@ -962,34 +1024,34 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
         return card;
     }
 
-    private FlowLayout buildStorageCard(SableContraptionData data) {
-        FlowLayout card = createSectionCard(
+    private @NotNull FlowLayout buildStorageCard(@NotNull SableContraptionData data) {
+        FlowLayout card = OwoUtils.createSectionCard(
                 Component.translatable("sablefinder.ui.section.sublevel_storage")
         );
 
-        card.child(createDataRow(
+        card.child(OwoUtils.createDataRow(
                 Component.translatable("sablefinder.ui.data.plot_coordinates"),
                 Component.translatable("sablefinder.ui.data.plot_coordinates_value", data.plotX(), data.plotZ())
         ));
 
-        card.child(createDataRow(
+        card.child(OwoUtils.createDataRow(
                 Component.translatable("sablefinder.ui.data.log_size"),
                 Component.literal(String.valueOf(data.logSize()))
         ));
 
-        card.child(createDataRow(
+        card.child(OwoUtils.createDataRow(
                 Component.translatable("sablefinder.ui.data.loaded_chunks"),
                 Component.literal(String.valueOf(data.chunkCount()))
         ));
 
         if (data.biome() != null) {
-            card.child(createDataRow(
+            card.child(OwoUtils.createDataRow(
                     Component.translatable("sablefinder.ui.data.biome"),
                     Component.literal(data.biome().location().toString())
             ));
         }
 
-        card.child(createDataRow(
+        card.child(OwoUtils.createDataRow(
                 Component.translatable("sablefinder.ui.data.data_version"),
                 Component.literal(String.valueOf(data.dataVersion()))
         ));
@@ -997,24 +1059,24 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
         return card;
     }
 
-    private Optional<FlowLayout> buildMotionCard(SableContraptionData data) {
+    private @NotNull Optional<FlowLayout> buildMotionCard(@NotNull SableContraptionData data) {
         if (data.linearVelocity() == null && data.angularVelocity() == null) {
             return Optional.empty();
         }
 
-        FlowLayout card = createSectionCard(
+        FlowLayout card = OwoUtils.createSectionCard(
                 Component.translatable("sablefinder.ui.section.motion")
         );
 
         if (data.linearVelocity() != null) {
-            card.child(createDataRow(
+            card.child(OwoUtils.createDataRow(
                     Component.translatable("sablefinder.ui.data.linear_velocity"),
                     formatVelocity(data.linearVelocity())
             ));
         }
 
         if (data.angularVelocity() != null) {
-            card.child(createDataRow(
+            card.child(OwoUtils.createDataRow(
                     Component.translatable("sablefinder.ui.data.angular_velocity"),
                     formatVelocity(data.angularVelocity())
             ));
@@ -1023,12 +1085,12 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
         return Optional.of(card);
     }
 
-    private Optional<FlowLayout> buildDependenciesCard(SableContraptionData data) {
+    private @NotNull Optional<FlowLayout> buildDependenciesCard(@NotNull SableContraptionData data) {
         if (data.dependencies() == null || data.dependencies().isEmpty()) {
             return Optional.empty();
         }
 
-        FlowLayout card = createSectionCard(
+        FlowLayout card = OwoUtils.createSectionCard(
                 Component.translatable("sablefinder.ui.section.dependencies", data.dependencies().size())
         );
 
@@ -1054,12 +1116,12 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
         return Optional.of(card);
     }
 
-    private FlowLayout buildDebugCard(SableContraptionData data) {
-        FlowLayout card = createSectionCard(
+    private @NotNull FlowLayout buildDebugCard(@NotNull SableContraptionData data) {
+        FlowLayout card = OwoUtils.createSectionCard(
                 Component.translatable("sablefinder.ui.section.debug_actions")
         );
 
-        card.child(fullWidthButton(
+        card.child(OwoUtils.fullWidthButton(
                 Component.translatable("sablefinder.ui.button.copy_raw"),
                 button -> {
                     button.setMessage(Component.translatable("sablefinder.ui.copied_exclaim"));
@@ -1076,98 +1138,15 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
     // WIDGET BUILDERS
     // ============================================================
 
-    private FlowLayout createSectionCard(Component title) {
-        FlowLayout card = Containers.verticalFlow(
-                Sizing.fill(100),
-                Sizing.content()
-        );
-        card.surface(Surface.DARK_PANEL);
-        card.padding(Insets.of(4));
-        card.gap(2);
-        card.child(Components.label(title));
 
-        return card;
-    }
-
-    private FlowLayout createDataRow(Component label, Component... components) {
-        FlowLayout row = Containers.verticalFlow(
-                Sizing.fill(100),
-                Sizing.content()
-        );
-        row.gap(1);
-        row.child(Components.label(Component.literal("§7").append(label)));
-
-        Arrays.stream(components).forEach(component ->
-                row.child(Components.label(component))
-        );
-
-        if (components.length > 0) {
-            StringBuilder copyText = new StringBuilder();
-
-            for (Component component : components) {
-                if (!copyText.isEmpty()) {
-                    copyText.append(' ');
-                }
-
-                copyText.append(component.getString());
-            }
-
-            row.child(createCopyButton(
-                    Component.literal(copyText.toString().replaceAll("§.", ""))
-            ));
-        }
-
-        return row;
-    }
-
-    private ButtonComponent createCopyButton(Component text) {
-        ButtonComponent copy = (ButtonComponent) Components.button(
-                Component.translatable("sablefinder.ui.button.copy"),
-                button -> {
-                    button.setMessage(Component.translatable("sablefinder.ui.copied"));
-
-                    if (this.minecraft != null) {
-                        this.minecraft.keyboardHandler.setClipboard(text.getString());
-                    }
-                }
-        ).tooltip(text);
-
-        copy.horizontalSizing(Sizing.fixed(30));
-        copy.verticalSizing(Sizing.fixed(10));
-
-        return copy;
-    }
-
-    private ButtonComponent fullWidthButton(Component label, Consumer<ButtonComponent> action) {
-        ButtonComponent button = Components.button(label, action);
-        button.horizontalSizing(Sizing.fill(100));
-        button.verticalSizing(Sizing.fixed(20));
-
-        return button;
-    }
-
-    private static Component rotateLabel(boolean enabled) {
-        return Component.translatable(
-                "sablefinder.ui.rot",
-                Component.translatable(enabled ? "sablefinder.ui.on" : "sablefinder.ui.off")
-        );
-    }
-
-    private static Component wireframeLabel(boolean enabled) {
-        return Component.translatable(
-                "sablefinder.ui.wf",
-                Component.translatable(enabled ? "sablefinder.ui.on" : "sablefinder.ui.off")
-        );
-    }
-
-    private static String formatCoords(Vector3d position) {
+    private static @NotNull String formatCoords(@NotNull Vector3d position) {
         return String.format(
                 Locale.ROOT, "%.2f %.2f %.2f",
                 position.x, position.y, position.z
         );
     }
 
-    private static Component formatVelocity(Vector3d velocity) {
+    private static @NotNull Component formatVelocity(@NotNull Vector3d velocity) {
         return Component.literal(String.format(
                 Locale.ROOT, "%.3f, %.3f, %.3f",
                 velocity.x, velocity.y, velocity.z
@@ -1192,7 +1171,7 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
         return contraptions.stream().anyMatch(entry -> entry.uuid().equals(uuid));
     }
 
-    private UUID firstPresent(UUID... candidates) {
+    private @Nullable UUID firstPresent(UUID @NotNull ... candidates) {
         for (UUID candidate : candidates) {
             if (candidate != null && containsContraption(candidate)) {
                 return candidate;

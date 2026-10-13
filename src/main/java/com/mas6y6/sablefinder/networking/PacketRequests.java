@@ -4,6 +4,7 @@ import com.mas6y6.sablefinder.SableFinder;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.neoforge.network.PacketDistributor;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.Map;
 import java.util.UUID;
@@ -17,19 +18,19 @@ public final class PacketRequests {
     private PacketRequests() {
     }
 
-    public static UUID newId() {
+    public static @NotNull UUID newId() {
         return UUID.randomUUID();
     }
 
-    public static <R extends CustomPacketPayload> CompletableFuture<R> sendToServer(RequestPayload<R> request) {
+    public static <R extends CustomPacketPayload> @NotNull CompletableFuture<R> sendToServer(@NotNull RequestPayload<R> request) {
         return submit(request, () -> PacketDistributor.sendToServer(request));
     }
 
-    public static <R extends CustomPacketPayload> CompletableFuture<R> sendToPlayer(ServerPlayer player, RequestPayload<R> request) {
+    public static <R extends CustomPacketPayload> @NotNull CompletableFuture<R> sendToPlayer(@NotNull ServerPlayer player, @NotNull RequestPayload<R> request) {
         return submit(request, () -> PacketDistributor.sendToPlayer(player, request));
     }
 
-    private static <R extends CustomPacketPayload> CompletableFuture<R> submit(RequestPayload<R> request, Runnable dispatcher) {
+    private static <R extends CustomPacketPayload> @NotNull CompletableFuture<R> submit(@NotNull RequestPayload<R> request, @NotNull Runnable dispatcher) {
         final CompletableFuture<R> future = new CompletableFuture<>();
         PENDING.put(request.requestId(), new PendingRequest(future, request.responseType()));
 
@@ -44,7 +45,7 @@ public final class PacketRequests {
     }
 
     @SuppressWarnings("unchecked")
-    public static void complete(ResponsePayload response) {
+    public static void complete(@NotNull ResponsePayload response) {
         final PendingRequest pending = PENDING.remove(response.requestId());
 
         if (pending == null) {

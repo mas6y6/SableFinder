@@ -1,16 +1,19 @@
 package com.mas6y6.sablefinder.utils;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
 import java.util.ArrayList;
 import java.util.Objects;
 
 public class Reactive<T> {
-    private T value;
+    private @Nullable T value;
     private final ArrayList<Listener<T>> listeners = new ArrayList<>();
 
     private Reactive(T value) {
         this.value = value;
     }
 
-    public static <T> Reactive<T> of(T value) {
+    public static <T> @NotNull Reactive<T> of(T value) {
         return new Reactive<>(value);
     }
 
@@ -18,7 +21,7 @@ public class Reactive<T> {
         return value;
     }
 
-    public T set(T value) {
+    public @Nullable T set(T value) {
         T oldValue = this.value;
 
         if (Objects.equals(oldValue, value)) {

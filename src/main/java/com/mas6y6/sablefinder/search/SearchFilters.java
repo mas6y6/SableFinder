@@ -3,6 +3,7 @@ package com.mas6y6.sablefinder.search;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 
@@ -79,7 +80,7 @@ public record SearchFilters(
         );
     }
 
-    public SearchFilters withSaveServer(boolean saveServer) {
+    public @NotNull SearchFilters withSaveServer(boolean saveServer) {
         return new SearchFilters(
                 saveServer,
                 useNameSearch, nameSearch,
@@ -89,7 +90,7 @@ public record SearchFilters(
         );
     }
 
-    public SearchFilters withUseNameSearch(boolean useNameSearch) {
+    public @NotNull SearchFilters withUseNameSearch(boolean useNameSearch) {
         return new SearchFilters(
                 saveServer,
                 useNameSearch, nameSearch,
@@ -99,7 +100,7 @@ public record SearchFilters(
         );
     }
 
-    public SearchFilters withNameSearch(String nameSearch) {
+    public @NotNull SearchFilters withNameSearch(String nameSearch) {
         return new SearchFilters(
                 saveServer,
                 useNameSearch, nameSearch,
@@ -109,7 +110,7 @@ public record SearchFilters(
         );
     }
 
-    public SearchFilters withUseUUIDSearch(boolean useUUIDSearch) {
+    public @NotNull SearchFilters withUseUUIDSearch(boolean useUUIDSearch) {
         return new SearchFilters(
                 saveServer,
                 useNameSearch, nameSearch,
@@ -119,7 +120,7 @@ public record SearchFilters(
         );
     }
 
-    public SearchFilters withUuidSearch(String uuidSearch) {
+    public @NotNull SearchFilters withUuidSearch(String uuidSearch) {
         return new SearchFilters(
                 saveServer,
                 useNameSearch, nameSearch,
@@ -129,7 +130,7 @@ public record SearchFilters(
         );
     }
 
-    public SearchFilters withUseBlockSize(boolean useBlockSize) {
+    public @NotNull SearchFilters withUseBlockSize(boolean useBlockSize) {
         return new SearchFilters(
                 saveServer,
                 useNameSearch, nameSearch,
@@ -139,7 +140,7 @@ public record SearchFilters(
         );
     }
 
-    public SearchFilters withBlockSearchMethod(BlockSearchMethod blockSearchMethod) {
+    public @NotNull SearchFilters withBlockSearchMethod(BlockSearchMethod blockSearchMethod) {
         return new SearchFilters(
                 saveServer,
                 useNameSearch, nameSearch,
@@ -149,7 +150,7 @@ public record SearchFilters(
         );
     }
 
-    public SearchFilters withBlockSize(int blockSize) {
+    public @NotNull SearchFilters withBlockSize(int blockSize) {
         return new SearchFilters(
                 saveServer,
                 useNameSearch, nameSearch,
@@ -159,7 +160,7 @@ public record SearchFilters(
         );
     }
 
-    public SearchFilters withBlockSizeMax(int blockSizeMax) {
+    public @NotNull SearchFilters withBlockSizeMax(int blockSizeMax) {
         return new SearchFilters(
                 saveServer,
                 useNameSearch, nameSearch,
@@ -169,7 +170,7 @@ public record SearchFilters(
         );
     }
 
-    public SearchFilters withUseBlockSearch(boolean useBlockSearch) {
+    public @NotNull SearchFilters withUseBlockSearch(boolean useBlockSearch) {
         return new SearchFilters(
                 saveServer,
                 useNameSearch, nameSearch,
@@ -179,7 +180,7 @@ public record SearchFilters(
         );
     }
 
-    public SearchFilters withBlockFilters(ArrayList<BlockFilter> blockFilters) {
+    public @NotNull SearchFilters withBlockFilters(ArrayList<BlockFilter> blockFilters) {
         return new SearchFilters(
                 saveServer,
                 useNameSearch, nameSearch,

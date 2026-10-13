@@ -30,11 +30,11 @@ public record SableContraptionListRequestPacket(UUID requestId) implements Reque
     }
 
     @Override
-    public CustomPacketPayload.Type<GetSableContraptionListPacket> responseType() {
+    public CustomPacketPayload.@NotNull Type<GetSableContraptionListPacket> responseType() {
         return GetSableContraptionListPacket.TYPE;
     }
 
-    public static void handleServer(SableContraptionListRequestPacket packet, IPayloadContext iPayloadContext) {
+    public static void handleServer(@NotNull SableContraptionListRequestPacket packet, @NotNull IPayloadContext iPayloadContext) {
         iPayloadContext.enqueueWork(() -> {
             if (iPayloadContext.player() instanceof ServerPlayer player) {
                 try {

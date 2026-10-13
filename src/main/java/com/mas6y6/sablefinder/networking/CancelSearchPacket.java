@@ -27,7 +27,7 @@ public record CancelSearchPacket(UUID requestId) implements CustomPacketPayload 
         return TYPE;
     }
 
-    public static void handleServer(CancelSearchPacket packet, IPayloadContext context) {
+    public static void handleServer(@NotNull CancelSearchPacket packet, @NotNull IPayloadContext context) {
         context.enqueueWork(() -> SearchEngine.cancel(packet.requestId()));
     }
 }

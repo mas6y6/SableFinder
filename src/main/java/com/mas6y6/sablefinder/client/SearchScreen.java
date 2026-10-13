@@ -24,10 +24,9 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.Blocks;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.lwjgl.glfw.GLFW;
-
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -39,6 +38,23 @@ import java.util.concurrent.CompletionException;
 public class SearchScreen extends BaseOwoScreen<FlowLayout> {
 
     private static final int MAX_PICKER_RESULTS = 80;
+
+    // Kept in memory only; this survives reopening the screen, not restarting Minecraft.
+    private static SearchConfig savedConfig;
+
+    private record SearchConfig(
+            boolean saveServer,
+            boolean useName,
+            String name,
+            boolean useUuid,
+            String uuid,
+            boolean useBlockSize,
+            BlockSearchMethod blockSearchMethod,
+            String blockSizeMin,
+            String blockSizeMax,
+            boolean useBlocks,
+            LinkedHashMap<ResourceLocation, Integer> selectedBlocks
+    ) {}
 
     private final SableFinderScreen parent;
 
@@ -59,7 +75,7 @@ public class SearchScreen extends BaseOwoScreen<FlowLayout> {
     private final CheckboxComponent useBlockSizeCheckbox =
             Components.checkbox(Component.translatable("sablefinder.ui.search.block_size"));
     private final ButtonComponent blockSizeMethodButton =
-            Components.button(Component.empty(), button -> cycleBlockSearchMethod(button));
+            Components.button(Component.empty(), this::cycleBlockSearchMethod);
     private final TextBoxComponent blockSizeBox = Components.textBox(Sizing.fill());
     private final TextBoxComponent blockSizeMaxBox = Components.textBox(Sizing.fill());
 
@@ -76,9 +92,9 @@ public class SearchScreen extends BaseOwoScreen<FlowLayout> {
 
     private final LinkedHashSet<ResourceLocation> pickerSelection = new LinkedHashSet<>();
 
-    private TextBoxComponent pickerSearchBox;
-    private ButtonComponent pickerConfirmButton;
-    private FlowLayout pickerResults;
+    private @Nullable TextBoxComponent pickerSearchBox;
+    private @Nullable ButtonComponent pickerConfirmButton;
+    private @Nullable FlowLayout pickerResults;
 
     private FlowLayout contentHost;
     private FlowLayout mainContent;
@@ -92,11 +108,12 @@ public class SearchScreen extends BaseOwoScreen<FlowLayout> {
 
     private LabelComponent statusLabel;
     private boolean searching;
-    private SearchRequest activeSearch;
+    private @Nullable SearchRequest activeSearch;
 
     public SearchScreen(SableFinderScreen parent) {
         this.parent = parent;
         configureComponents();
+        loadConfig();
     }
 
     private void configureComponents() {
@@ -118,10 +135,49 @@ public class SearchScreen extends BaseOwoScreen<FlowLayout> {
         addBlockButton.horizontalSizing(Sizing.fixed(18));
         addBlockButton.verticalSizing(Sizing.fixed(18));
 
+        saveServerCheckbox.onChanged(checked -> onFilterToggled());
         useNameCheckbox.onChanged(checked -> onFilterToggled());
+        nameBox.onChanged().subscribe(value -> onFilterToggled());
         useUuidCheckbox.onChanged(checked -> onFilterToggled());
+        uuidBox.onChanged().subscribe(value -> onFilterToggled());
         useBlockSizeCheckbox.onChanged(checked -> onFilterToggled());
+        blockSizeBox.onChanged().subscribe(value -> onFilterToggled());
+        blockSizeMaxBox.onChanged().subscribe(value -> onFilterToggled());
         useBlocksCheckbox.onChanged(checked -> onFilterToggled());
+    }
+
+    private void loadConfig() {
+        if (savedConfig == null) return;
+
+        saveServerCheckbox.checked(savedConfig.saveServer());
+        useNameCheckbox.checked(savedConfig.useName());
+        nameBox.text(savedConfig.name());
+        useUuidCheckbox.checked(savedConfig.useUuid());
+        uuidBox.text(savedConfig.uuid());
+        useBlockSizeCheckbox.checked(savedConfig.useBlockSize());
+        blockSearchMethod = savedConfig.blockSearchMethod();
+        blockSizeMethodButton.setMessage(blockSizeMethodLabel());
+        blockSizeBox.text(savedConfig.blockSizeMin());
+        blockSizeMaxBox.text(savedConfig.blockSizeMax());
+        useBlocksCheckbox.checked(savedConfig.useBlocks());
+        selectedBlocks.clear();
+        selectedBlocks.putAll(savedConfig.selectedBlocks());
+    }
+
+    private void saveConfig() {
+        savedConfig = new SearchConfig(
+                saveServerCheckbox.selected(),
+                useNameCheckbox.selected(),
+                nameBox.getValue(),
+                useUuidCheckbox.selected(),
+                uuidBox.getValue(),
+                useBlockSizeCheckbox.selected(),
+                blockSearchMethod,
+                blockSizeBox.getValue(),
+                blockSizeMaxBox.getValue(),
+                useBlocksCheckbox.selected(),
+                new LinkedHashMap<>(selectedBlocks)
+        );
     }
 
     @Override
@@ -130,7 +186,7 @@ public class SearchScreen extends BaseOwoScreen<FlowLayout> {
     }
 
     @Override
-    protected void build(FlowLayout rootComponent) {
+    protected void build(@NotNull FlowLayout rootComponent) {
         rootComponent.surface(Surface.VANILLA_TRANSLUCENT);
         rootComponent.horizontalAlignment(HorizontalAlignment.CENTER);
         rootComponent.verticalAlignment(VerticalAlignment.CENTER);
@@ -152,7 +208,7 @@ public class SearchScreen extends BaseOwoScreen<FlowLayout> {
         onFilterToggled();
     }
 
-    private FlowLayout buildHeader() {
+    private @NotNull FlowLayout buildHeader() {
         final FlowLayout header = Containers.horizontalFlow(Sizing.fill(100), Sizing.fixed(22));
         header.surface(Surface.DARK_PANEL);
         header.padding(Insets.horizontal(6));
@@ -163,21 +219,21 @@ public class SearchScreen extends BaseOwoScreen<FlowLayout> {
         header.child(horizontalSpacer());
 
         searchButton.horizontalSizing(Sizing.fixed(70));
-        searchButton.verticalSizing(Sizing.fixed(18));
+        searchButton.verticalSizing(Sizing.fixed(16));
         header.child(searchButton);
 
         resetButton.horizontalSizing(Sizing.fixed(52));
-        resetButton.verticalSizing(Sizing.fixed(18));
+        resetButton.verticalSizing(Sizing.fixed(16));
         header.child(resetButton);
 
         closeButton.horizontalSizing(Sizing.fixed(52));
-        closeButton.verticalSizing(Sizing.fixed(18));
+        closeButton.verticalSizing(Sizing.fixed(16));
         header.child(closeButton);
 
         return header;
     }
 
-    private FlowLayout buildContent() {
+    private @NotNull FlowLayout buildContent() {
         final FlowLayout content = Containers.horizontalFlow(Sizing.fill(100), Sizing.expand());
         content.gap(4);
 
@@ -187,7 +243,7 @@ public class SearchScreen extends BaseOwoScreen<FlowLayout> {
         return content;
     }
 
-    private FlowLayout buildFilterPanel() {
+    private @NotNull FlowLayout buildFilterPanel() {
         final FlowLayout panel = Containers.verticalFlow(Sizing.fill(44), Sizing.fill(100));
         panel.surface(Surface.DARK_PANEL);
         panel.padding(Insets.of(5));
@@ -235,7 +291,7 @@ public class SearchScreen extends BaseOwoScreen<FlowLayout> {
         return panel;
     }
 
-    private FlowLayout buildBlockPanel() {
+    private @NotNull FlowLayout buildBlockPanel() {
         final FlowLayout panel = Containers.verticalFlow(Sizing.fill(53), Sizing.fill(100));
         panel.surface(Surface.DARK_PANEL);
         panel.padding(Insets.of(5));
@@ -273,7 +329,7 @@ public class SearchScreen extends BaseOwoScreen<FlowLayout> {
         this.contentHost.child(buildBlockPicker());
     }
 
-    private FlowLayout buildBlockPicker() {
+    private @NotNull FlowLayout buildBlockPicker() {
         final FlowLayout panel = Containers.verticalFlow(Sizing.fill(100), Sizing.fill(100));
         panel.surface(Surface.DARK_PANEL);
         panel.padding(Insets.of(6));
@@ -325,14 +381,11 @@ public class SearchScreen extends BaseOwoScreen<FlowLayout> {
         pickerResults.clearChildren();
 
         final String raw = pickerSearchBox != null ? pickerSearchBox.getValue() : "";
-        final String needle = raw == null ? "" : raw.trim().toLowerCase(Locale.ROOT);
+        final String needle = raw.trim().toLowerCase(Locale.ROOT);
         int shown = 0;
 
         for (final Block block : BuiltInRegistries.BLOCK) {
             final ResourceLocation id = BuiltInRegistries.BLOCK.getKey(block);
-            if (id == null) {
-                continue;
-            }
 
             final String idString = id.toString();
 
@@ -354,7 +407,7 @@ public class SearchScreen extends BaseOwoScreen<FlowLayout> {
         }
     }
 
-    private FlowLayout buildBlockPickerRow(Block block, ResourceLocation id) {
+    private @NotNull FlowLayout buildBlockPickerRow(@NotNull Block block, ResourceLocation id) {
         final FlowLayout row = Containers.horizontalFlow(Sizing.fill(100), Sizing.content());
         row.gap(3);
         row.verticalAlignment(VerticalAlignment.CENTER);
@@ -383,8 +436,8 @@ public class SearchScreen extends BaseOwoScreen<FlowLayout> {
         button.tooltip(Component.translatable(picked
                 ? "sablefinder.ui.search.block_picker.unselect"
                 : alreadySelected
-                        ? "sablefinder.ui.search.block_picker.already"
-                        : "sablefinder.ui.search.block_picker.add"));
+                ? "sablefinder.ui.search.block_picker.already"
+                : "sablefinder.ui.search.block_picker.add"));
         row.child(button);
 
         return row;
@@ -440,7 +493,7 @@ public class SearchScreen extends BaseOwoScreen<FlowLayout> {
     private boolean isBlockPickerOpen() {
         return this.contentHost != null
                 && this.mainContent != null
-                && !(this.contentHost.children().size() == 1 && this.contentHost.children().get(0) == this.mainContent);
+                && !(this.contentHost.children().size() == 1 && this.contentHost.children().getFirst() == this.mainContent);
     }
 
     private void rebuildSelectedBlocks() {
@@ -462,7 +515,7 @@ public class SearchScreen extends BaseOwoScreen<FlowLayout> {
         updateStatus();
     }
 
-    private FlowLayout buildSelectedBlockRow(ResourceLocation id, int amount) {
+    private @NotNull FlowLayout buildSelectedBlockRow(@NotNull ResourceLocation id, int amount) {
         final FlowLayout row = Containers.horizontalFlow(Sizing.fill(100), Sizing.content());
         row.surface(Surface.flat(0xFF2B2F36));
         row.padding(Insets.of(3));
@@ -491,7 +544,10 @@ public class SearchScreen extends BaseOwoScreen<FlowLayout> {
         final TextBoxComponent amountBox = Components.textBox(Sizing.fixed(34), String.valueOf(amount));
         amountBox.setMaxLength(6);
         amountBox.tooltip(Component.translatable("sablefinder.ui.search.blocks.amount.tooltip"));
-        amountBox.onChanged().subscribe(value -> selectedBlocks.put(id, Math.max(parseInteger(value, 1), 1)));
+        amountBox.onChanged().subscribe(value -> {
+            selectedBlocks.put(id, Math.max(parseInteger(value, 1), 1));
+            onFilterToggled();
+        });
         row.child(amountBox);
 
         return row;
@@ -588,15 +644,16 @@ public class SearchScreen extends BaseOwoScreen<FlowLayout> {
         onFilterToggled();
     }
 
-    private void cycleBlockSearchMethod(ButtonComponent button) {
+    private void cycleBlockSearchMethod(@NotNull ButtonComponent button) {
         final BlockSearchMethod[] methods = BlockSearchMethod.values();
         blockSearchMethod = methods[(blockSearchMethod.ordinal() + 1) % methods.length];
         button.setMessage(blockSizeMethodLabel());
+        onFilterToggled();
     }
 
     // --- state -------------------------------------------------------------
 
-    private SearchFilters buildFilters() {
+    private @NotNull SearchFilters buildFilters() {
         return new SearchFilters(
                 saveServerCheckbox.selected(),
 
@@ -616,7 +673,7 @@ public class SearchScreen extends BaseOwoScreen<FlowLayout> {
         );
     }
 
-    private ArrayList<BlockFilter> buildBlockFilters() {
+    private @NotNull ArrayList<BlockFilter> buildBlockFilters() {
         final ArrayList<BlockFilter> filters = new ArrayList<>();
 
         for (final Map.Entry<ResourceLocation, Integer> entry : selectedBlocks.entrySet()) {
@@ -673,11 +730,11 @@ public class SearchScreen extends BaseOwoScreen<FlowLayout> {
 
     // --- helpers -----------------------------------------------------------
 
-    private Component blockSizeMethodLabel() {
+    private @NotNull Component blockSizeMethodLabel() {
         return Component.translatable("sablefinder.ui.search.block_size.method", methodName(blockSearchMethod));
     }
 
-    private static Component methodName(BlockSearchMethod method) {
+    private static @NotNull Component methodName(@NotNull BlockSearchMethod method) {
         return Component.translatable(switch (method) {
             case EQUAL -> "sablefinder.ui.search.method.equal";
             case LESS_THEN -> "sablefinder.ui.search.method.less_then";
@@ -686,7 +743,7 @@ public class SearchScreen extends BaseOwoScreen<FlowLayout> {
         });
     }
 
-    private static FlowLayout card() {
+    private static @NotNull FlowLayout card() {
         final FlowLayout card = Containers.verticalFlow(Sizing.fill(100), Sizing.content());
         card.surface(Surface.flat(0xFF23262D));
         card.padding(Insets.of(4));
@@ -694,11 +751,11 @@ public class SearchScreen extends BaseOwoScreen<FlowLayout> {
         return card;
     }
 
-    private static FlowLayout horizontalSpacer() {
+    private static @NotNull FlowLayout horizontalSpacer() {
         return Containers.verticalFlow(Sizing.expand(), Sizing.fixed(0));
     }
 
-    private static FlowLayout labeledBox(String labelKey, TextBoxComponent box) {
+    private static @NotNull FlowLayout labeledBox(@NotNull String labelKey, TextBoxComponent box) {
         final FlowLayout column = Containers.verticalFlow(Sizing.expand(), Sizing.content());
         column.gap(1);
         column.child(Components.label(Component.translatable(labelKey)));
@@ -706,7 +763,7 @@ public class SearchScreen extends BaseOwoScreen<FlowLayout> {
         return column;
     }
 
-    private static int parseInteger(String value, int fallback) {
+    private static int parseInteger(@NotNull String value, int fallback) {
         try {
             return Integer.parseInt(value.trim());
         } catch (NumberFormatException exception) {
@@ -726,6 +783,7 @@ public class SearchScreen extends BaseOwoScreen<FlowLayout> {
 
     @Override
     public void onClose() {
+        saveConfig();
         closeBlockPicker();
 
         final SearchRequest request = activeSearch;

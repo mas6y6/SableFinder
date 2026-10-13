@@ -1,6 +1,7 @@
 package com.mas6y6.sablefinder.utils;
 
 import net.minecraft.nbt.*;
+import org.jetbrains.annotations.NotNull;
 
 public final class TagFormatter {
 
@@ -8,11 +9,11 @@ public final class TagFormatter {
 
     private TagFormatter() {}
 
-    public static String format(CompoundTag tag) {
+    public static @NotNull String format(CompoundTag tag) {
         return formatTag(tag, 0);
     }
 
-    private static String formatTag(Tag tag, int depth) {
+    private static @NotNull String formatTag(Tag tag, int depth) {
         if (tag instanceof CompoundTag compound) {
             if (compound.isEmpty()) {
                 return "{}";
@@ -64,7 +65,7 @@ public final class TagFormatter {
         return tag.toString();
     }
 
-    private static String indent(int depth) {
+    private static @NotNull String indent(int depth) {
         return INDENT.repeat(depth);
     }
 }

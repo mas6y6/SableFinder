@@ -32,11 +32,11 @@ public record SableContraptionRequestPacket(UUID requestId, UUID contraptionId) 
     }
 
     @Override
-    public CustomPacketPayload.Type<GetSableContraptionPacket> responseType() {
+    public CustomPacketPayload.@NotNull Type<GetSableContraptionPacket> responseType() {
         return GetSableContraptionPacket.TYPE;
     }
 
-    public static void handleServer(SableContraptionRequestPacket packet, IPayloadContext iPayloadContext) {
+    public static void handleServer(@NotNull SableContraptionRequestPacket packet, @NotNull IPayloadContext iPayloadContext) {
         iPayloadContext.enqueueWork(() -> {
             if (iPayloadContext.player() instanceof ServerPlayer player) {
                 final MinecraftServer server = player.serverLevel().getServer();

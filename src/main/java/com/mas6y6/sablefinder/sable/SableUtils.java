@@ -16,15 +16,13 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Field;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -43,27 +41,27 @@ public class SableUtils {
     private static final long SUGGESTION_CACHE_TTL_MS = 30_000L;
     private static final AtomicBoolean SUGGESTION_CACHE_REFRESH_IN_FLIGHT = new AtomicBoolean(false);
 
-    private static volatile List<UUID> cachedContraptionUuids = List.of();
+    private static volatile @NotNull List<UUID> cachedContraptionUuids = List.of();
     private static volatile long cachedContraptionUuidsAt = 0L;
 
-    public static List<SableContraptionData> getAllContraptions(MinecraftServer server) {
+    public static @NotNull List<SableContraptionData> getAllContraptions(@NotNull MinecraftServer server) {
         return getAllContraptions(server, true);
     }
 
-    public static List<SableContraptionData> getAllContraptions(MinecraftServer server, boolean saveWorld) {
+    public static @NotNull List<SableContraptionData> getAllContraptions(@NotNull MinecraftServer server, boolean saveWorld) {
         saveSubLevels(server, saveWorld);
         return scanContraptions(buildScanPlan(server));
     }
 
-    public static CompletableFuture<List<SableContraptionData>> getAllContraptionsAsync(MinecraftServer server) {
+    public static @NotNull CompletableFuture<List<SableContraptionData>> getAllContraptionsAsync(@NotNull MinecraftServer server) {
         return getAllContraptionsAsync(server, true);
     }
 
-    public static CompletableFuture<List<SableContraptionData>> getAllContraptionsAsync(MinecraftServer server, boolean saveWorld) {
+    public static @NotNull CompletableFuture<List<SableContraptionData>> getAllContraptionsAsync(@NotNull MinecraftServer server, boolean saveWorld) {
         return getAllContraptionsAsync(server, saveWorld, null);
     }
 
-    public static CompletableFuture<List<SableContraptionData>> getAllContraptionsAsync(MinecraftServer server, boolean saveWorld, AtomicBoolean cancelled) {
+    public static @NotNull CompletableFuture<List<SableContraptionData>> getAllContraptionsAsync(@NotNull MinecraftServer server, boolean saveWorld, AtomicBoolean cancelled) {
         saveSubLevels(server, saveWorld);
 
         final List<LevelScan> plan = buildScanPlan(server);
@@ -71,7 +69,7 @@ public class SableUtils {
         return CompletableFuture.supplyAsync(() -> scanContraptions(plan, cancelled), SCAN_EXECUTOR);
     }
 
-    public static List<UUID> getCachedContraptionUuids(MinecraftServer server) {
+    public static List<UUID> getCachedContraptionUuids(@NotNull MinecraftServer server) {
         if (System.currentTimeMillis() - cachedContraptionUuidsAt > SUGGESTION_CACHE_TTL_MS) {
             refreshContraptionUuidCache(server);
         }
@@ -79,7 +77,7 @@ public class SableUtils {
         return cachedContraptionUuids;
     }
 
-    private static void refreshContraptionUuidCache(MinecraftServer server) {
+    private static void refreshContraptionUuidCache(@NotNull MinecraftServer server) {
         if (!SUGGESTION_CACHE_REFRESH_IN_FLIGHT.compareAndSet(false, true)) {
             return;
         }
@@ -110,7 +108,7 @@ public class SableUtils {
         });
     }
 
-    private static void saveSubLevels(MinecraftServer server, boolean save) {
+    private static void saveSubLevels(@NotNull MinecraftServer server, boolean save) {
         if (!save) {
             return;
         }
@@ -128,7 +126,7 @@ public class SableUtils {
         }
     }
 
-    private static List<LevelScan> buildScanPlan(MinecraftServer server) {
+    private static @NotNull List<LevelScan> buildScanPlan(@NotNull MinecraftServer server) {
         final List<LevelScan> plan = new ArrayList<>();
 
         for (final ServerLevel level : server.getAllLevels()) {
@@ -149,11 +147,11 @@ public class SableUtils {
     }
 
 
-    private static List<SableContraptionData> scanContraptions(List<LevelScan> plan) {
+    private static @NotNull List<SableContraptionData> scanContraptions(@NotNull List<LevelScan> plan) {
         return scanContraptions(plan, null);
     }
 
-    private static List<SableContraptionData> scanContraptions(List<LevelScan> plan, AtomicBoolean cancelled) {
+    private static @NotNull List<SableContraptionData> scanContraptions(@NotNull List<LevelScan> plan, AtomicBoolean cancelled) {
         final List<SableContraptionData> list = new ArrayList<>();
 
         for (final LevelScan scan : plan) {
@@ -170,21 +168,21 @@ public class SableUtils {
         return list;
     }
 
-    private static void checkCancelled(AtomicBoolean cancelled) {
+    private static void checkCancelled(@Nullable AtomicBoolean cancelled) {
         if (cancelled != null && cancelled.get()) {
             throw new CancellationException("Contraption scan cancelled");
         }
     }
 
-    public static CompoundTag buildContraptionsTag(MinecraftServer server) {
+    public static @NotNull CompoundTag buildContraptionsTag(@NotNull MinecraftServer server) {
         return buildContraptionsTag(getAllContraptions(server));
     }
 
-    public static CompletableFuture<CompoundTag> buildContraptionsTagAsync(MinecraftServer server) {
+    public static @NotNull CompletableFuture<CompoundTag> buildContraptionsTagAsync(@NotNull MinecraftServer server) {
         return getAllContraptionsAsync(server).thenApply(SableUtils::buildContraptionsTag);
     }
 
-    public static CompoundTag buildContraptionsTag(List<SableContraptionData> contraptions) {
+    public static @NotNull CompoundTag buildContraptionsTag(@NotNull List<SableContraptionData> contraptions) {
         CompoundTag tag = new CompoundTag();
         var list = new net.minecraft.nbt.ListTag();
 
@@ -200,14 +198,14 @@ public class SableUtils {
         return tag;
     }
 
-    public static SableContraptionData getContraption(MinecraftServer server, UUID uuid, boolean saveServer) {
+    public static @Nullable SableContraptionData getContraption(@NotNull MinecraftServer server, UUID uuid, boolean saveServer) {
         return getAllContraptions(server, saveServer).stream()
                 .filter(contraption -> contraption.uuid().equals(uuid))
                 .findFirst()
                 .orElse(null);
     }
 
-    public static CompletableFuture<SableContraptionData> getContraptionAsync(MinecraftServer server, UUID uuid, boolean saveServer) {
+    public static @NotNull CompletableFuture<SableContraptionData> getContraptionAsync(@NotNull MinecraftServer server, UUID uuid, boolean saveServer) {
         return getAllContraptionsAsync(server, saveServer)
                 .thenApply(list -> list.stream()
                 .filter(contraption -> contraption.uuid().equals(uuid))
@@ -217,7 +215,7 @@ public class SableUtils {
 
     private record LevelScan(ServerLevel level, SubLevelStorage storage, Set<UUID> loadedUuids) {}
 
-    public static boolean deleteContraption(MinecraftServer server, UUID uuid) {
+    public static boolean deleteContraption(@NotNull MinecraftServer server, @NotNull UUID uuid) {
         for (final ServerLevel level : server.getAllLevels()) {
             final ServerSubLevelContainer container = ServerSubLevelContainer.getContainer(level);
 
@@ -234,7 +232,7 @@ public class SableUtils {
         return false;
     }
 
-    private static boolean deleteFromContainer(ServerSubLevelContainer container, UUID uuid) {
+    private static boolean deleteFromContainer(@NotNull ServerSubLevelContainer container, @NotNull UUID uuid) {
         SubLevel subLevel = container.getSubLevel(uuid);
         if (subLevel != null) {
             container.removeSubLevel(subLevel, SubLevelRemovalReason.REMOVED);
@@ -273,7 +271,7 @@ public class SableUtils {
         return true;
     }
 
-    private static boolean deleteStoredSubLevel(SubLevelHoldingChunkMap holdingChunkMap, GlobalSavedSubLevelPointer pointer, UUID uuid) {
+    private static boolean deleteStoredSubLevel(@NotNull SubLevelHoldingChunkMap holdingChunkMap, @NotNull GlobalSavedSubLevelPointer pointer, UUID uuid) {
         final SubLevelStorage storage = holdingChunkMap.getStorage();
 
         SubLevelHoldingChunk holdingChunk = getLoadedHoldingChunk(holdingChunkMap, pointer.chunkPos());
@@ -302,7 +300,7 @@ public class SableUtils {
         return true;
     }
 
-    private static SubLevelHoldingChunk getLoadedHoldingChunk(SubLevelHoldingChunkMap holdingChunkMap, ChunkPos chunkPos) {
+    private static @Nullable SubLevelHoldingChunk getLoadedHoldingChunk(SubLevelHoldingChunkMap holdingChunkMap, @NotNull ChunkPos chunkPos) {
         try {
             final Field field = SubLevelHoldingChunkMap.class.getDeclaredField("loadedHoldingChunks");
             field.setAccessible(true);
@@ -321,7 +319,7 @@ public class SableUtils {
         return null;
     }
 
-    private static GlobalSavedSubLevelPointer findSubLevelPointer(ServerSubLevelContainer container, UUID uuid) {
+    private static GlobalSavedSubLevelPointer findSubLevelPointer(@NotNull ServerSubLevelContainer container, @NotNull UUID uuid) {
         final SubLevelHoldingChunkMap holdingChunkMap = container.getHoldingChunkMap();
 
         final HoldingSubLevel holdingSubLevel = holdingChunkMap.getHoldingSubLevel(uuid);
@@ -340,7 +338,7 @@ public class SableUtils {
         return found[0];
     }
 
-    private static void forEachStoredSubLevel(SubLevelStorage storage, StoredSubLevelVisitor visitor) {
+    private static void forEachStoredSubLevel(@NotNull SubLevelStorage storage, @NotNull StoredSubLevelVisitor visitor) {
         final File[] regionFiles = storage.getFolder().toFile().listFiles((dir, name) -> name.endsWith(SubLevelRegionFile.FILE_EXTENSION));
 
         if (regionFiles == null) {
@@ -389,9 +387,9 @@ public class SableUtils {
         boolean visit(ChunkPos chunkPos, SavedSubLevelPointer pointer, SubLevelData data);
     }
 
-    public static boolean isSublevelLoaded(MinecraftServer server, UUID uuid) {
+    public static boolean isSublevelLoaded(@NotNull MinecraftServer server, UUID uuid) {
         for (ServerLevel level : server.getAllLevels()) {
-            if (ServerSubLevelContainer.getContainer(level)
+            if (Objects.requireNonNull(ServerSubLevelContainer.getContainer(level))
                     .getAllSubLevels()
                     .contains(uuid)) {
                 return true;

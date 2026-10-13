@@ -31,7 +31,7 @@ public record SearchForContraptionsResponsePacket(UUID requestId, CompoundTag co
         return TYPE;
     }
 
-    public void handleClient(IPayloadContext iPayloadContext) {
+    public void handleClient(@NotNull IPayloadContext iPayloadContext) {
         iPayloadContext.enqueueWork(() -> PacketRequests.complete(this));
     }
 }

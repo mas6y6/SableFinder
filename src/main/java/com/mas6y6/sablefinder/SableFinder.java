@@ -3,7 +3,6 @@ package com.mas6y6.sablefinder;
 import com.mas6y6.sablefinder.config.ConfigServer;
 import com.mas6y6.sablefinder.networking.Networking;
 import com.mas6y6.sablefinder.networking.PacketRequests;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.MinecraftServer;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
@@ -11,6 +10,7 @@ import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.server.ServerStartedEvent;
 import net.neoforged.neoforge.event.server.ServerStoppedEvent;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 
@@ -29,9 +29,9 @@ import java.io.IOException;
 public class SableFinder {
     public static final String MODID = "sablefinder";
     public static final Logger LOGGER = LogUtils.getLogger();
-    private static MinecraftServer server;
+    private static @Nullable MinecraftServer server;
 
-    public SableFinder(IEventBus modEventBus, ModContainer modContainer) {
+    public SableFinder(@NotNull IEventBus modEventBus, @NotNull ModContainer modContainer) {
         modContainer.registerConfig(ModConfig.Type.SERVER, ConfigServer.SPEC);
         modEventBus.register(this);
         NeoForge.EVENT_BUS.addListener(this::onCommandRegister);
@@ -41,12 +41,12 @@ public class SableFinder {
     }
 
     @SubscribeEvent
-    public void onPacketRegister(RegisterPayloadHandlersEvent event) {
+    public void onPacketRegister(@NotNull RegisterPayloadHandlersEvent event) {
         var payloadregister = event.registrar("1").optional();
         Networking.registerPayloadHandlers(payloadregister);
     }
 
-    private void onCommandRegister(RegisterCommandsEvent event) {
+    private void onCommandRegister(@NotNull RegisterCommandsEvent event) {
         SFCommands.register(event.getDispatcher());
     }
 
@@ -58,7 +58,7 @@ public class SableFinder {
         return server;
     }
 
-    private void onServerStart(ServerStartedEvent event) {
+    private void onServerStart(@NotNull ServerStartedEvent event) {
         server = event.getServer();
     }
 

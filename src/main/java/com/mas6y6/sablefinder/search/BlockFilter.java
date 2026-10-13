@@ -4,6 +4,7 @@ import io.netty.buffer.ByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.resources.ResourceLocation;
+import org.jetbrains.annotations.NotNull;
 
 public record BlockFilter(ResourceLocation block, int minCount) {
     public static final StreamCodec<ByteBuf, BlockFilter> STREAM_CODEC = StreamCodec.composite(
@@ -12,7 +13,7 @@ public record BlockFilter(ResourceLocation block, int minCount) {
             BlockFilter::new
     );
 
-    public static BlockFilter of(ResourceLocation block) {
+    public static @NotNull BlockFilter of(ResourceLocation block) {
         return new BlockFilter(block, 1);
     }
 }

@@ -22,14 +22,14 @@ public record SearchForContraptionsPacket(UUID requestId, SearchFilters searchFi
             SearchForContraptionsPacket::read
     );
 
-    private static SearchForContraptionsPacket read(ByteBuf byteBuf) {
+    private static @NotNull SearchForContraptionsPacket read(@NotNull ByteBuf byteBuf) {
         return new SearchForContraptionsPacket(
                 UUIDUtil.STREAM_CODEC.decode(byteBuf),
                 SearchFilters.STREAM_CODEC.decode(byteBuf)
         );
     }
 
-    private static void write(ByteBuf byteBuf, SearchForContraptionsPacket packet) {
+    private static void write(@NotNull ByteBuf byteBuf, @NotNull SearchForContraptionsPacket packet) {
         UUIDUtil.STREAM_CODEC.encode(byteBuf, packet.requestId());
         SearchFilters.STREAM_CODEC.encode(byteBuf, packet.searchFilters());
     }
@@ -40,11 +40,11 @@ public record SearchForContraptionsPacket(UUID requestId, SearchFilters searchFi
     }
 
     @Override
-    public CustomPacketPayload.Type<SearchForContraptionsResponsePacket> responseType() {
+    public CustomPacketPayload.@NotNull Type<SearchForContraptionsResponsePacket> responseType() {
         return SearchForContraptionsResponsePacket.TYPE;
     }
 
-    public void handleServer(IPayloadContext iPayloadContext) {
+    public void handleServer(@NotNull IPayloadContext iPayloadContext) {
         iPayloadContext.enqueueWork(() -> {
             SearchEngine.searchPacket(this, iPayloadContext);
         });

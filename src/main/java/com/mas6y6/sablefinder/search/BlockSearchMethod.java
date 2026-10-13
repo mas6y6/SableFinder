@@ -3,6 +3,7 @@ package com.mas6y6.sablefinder.search;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
+import org.jetbrains.annotations.NotNull;
 
 public enum BlockSearchMethod {
     EQUAL(1),
@@ -19,7 +20,7 @@ public enum BlockSearchMethod {
         this.id = i;
     }
 
-    public static BlockSearchMethod byId(int id) {
+    public static @NotNull BlockSearchMethod byId(int id) {
         for (BlockSearchMethod value : values()) {
             if (value.id == id) {
                 return value;

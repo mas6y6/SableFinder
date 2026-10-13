@@ -1,8 +1,10 @@
 package com.mas6y6.sablefinder.simulated;
 
 import com.mas6y6.sablefinder.SableFinder;
+import com.mas6y6.sablefinder.mixininterface.ISFPhysicsStaffServerHandler;
 import dev.simulated_team.simulated.content.physics_staff.PhysicsStaffServerHandler;
-import net.minecraft.world.level.saveddata.SavedData;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.Optional;
 
@@ -13,7 +15,7 @@ public class SimulatedCompat {
 
     }
 
-    public static Optional<SimulatedCompat> getInstance() {
+    public static @NotNull Optional<SimulatedCompat> getInstance() {
         try {
             Class.forName("dev.simulated_team.simulated.Simulated");
         } catch (ClassNotFoundException e) {
@@ -39,12 +41,13 @@ public class SimulatedCompat {
         return true;
     }
 
-    public PhysicsStaffServerHandler getPhysicsStaffServerHandler() {
+    public @Nullable ISFPhysicsStaffServerHandler getPhysicsStaffServerHandler() {
         var level = SableFinder.getServer().overworld();
 
-        var storage = PhysicsStaffServerHandler.get(level);
+        if (PhysicsStaffServerHandler.get(level) instanceof ISFPhysicsStaffServerHandler handler) {
+            return handler;
+        }
 
-
-        return storage;
+        return null;
     }
 }

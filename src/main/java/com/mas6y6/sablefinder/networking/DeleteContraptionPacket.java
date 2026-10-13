@@ -5,7 +5,6 @@ import com.mas6y6.sablefinder.sable.SableUtils;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.core.UUIDUtil;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
@@ -32,7 +31,7 @@ public record DeleteContraptionPacket(UUID contraptionUUID) implements CustomPac
         return TYPE;
     }
 
-    public static void handleServer(DeleteContraptionPacket packet, IPayloadContext iPayloadContext) {
+    public static void handleServer(@NotNull DeleteContraptionPacket packet, @NotNull IPayloadContext iPayloadContext) {
         iPayloadContext.enqueueWork(() -> {
             if (iPayloadContext.player() instanceof ServerPlayer player ) {
                 if (SableUtils.deleteContraption(player.server, packet.contraptionUUID())) {

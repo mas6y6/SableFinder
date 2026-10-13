@@ -19,14 +19,18 @@
   "sablefinder.ui.untitled": "Untitled Contraption (%s)",
   "sablefinder.ui.index": "%s/%s",
   "sablefinder.ui.found": "§7Found: §f%s",
+  "sablefinder.ui.simulated_actions": "§6Simulated Actions",
+  "sablefinder.ui.simulated": "§6Simulated",
+  "sablefinder.ui.button.lock_contraption": "Lock Contraption",
+  "sablefinder.ui.button.unlock_contraption": "Unlock Contraption",
 
   "sablefinder.ui.button.collapse": "<",
   "sablefinder.ui.button.expand": ">",
   "sablefinder.ui.button.clear": "C",
   "sablefinder.ui.button.search": "Search",
   "sablefinder.ui.button.close": "Close",
-  "sablefinder.ui.button.reload": "Reload",
-  "sablefinder.ui.button.reloading": "Reloading...",
+  "sablefinder.ui.button.refresh": "Refresh",
+  "sablefinder.ui.button.refreshing": "Refreshing...",
   "sablefinder.ui.button.retry": "Retry",
   "sablefinder.ui.button.reset": "Reset",
   "sablefinder.ui.button.teleport": "Teleport to",
@@ -35,11 +39,13 @@
   "sablefinder.ui.button.copy_raw": "Copy Raw Sable Data",
   "sablefinder.ui.button.open": "Open",
   "sablefinder.ui.button.delete": "§cDelete",
+  "sablefinder.ui.button.guide": "Guide",
 
   "sablefinder.ui.tooltip.collapse_list": "Collapse List",
   "sablefinder.ui.tooltip.expand_list": "Expand List",
-  "sablefinder.ui.tooltip.clear_filters": "Clear search filters",
+  "sablefinder.ui.tooltip.clear_filters": "Reset's search results",
   "sablefinder.ui.tooltip.contraption": "%s\n§7UUID: %s\n§7Dimension: %s",
+  "sablefinder.ui.tooltip.refreshButton": "Gets the latest information from the server",
 
   "sablefinder.ui.list.search": "§7Search...",
   "sablefinder.ui.list.empty": "§7No contraptions found",
@@ -65,6 +71,7 @@
   "sablefinder.ui.uuid": "§7UUID:",
   "sablefinder.ui.dimension": "§7Dimension:",
   "sablefinder.ui.loaded": "§7Loaded:",
+  "sablefinder.ui.islocked": "§7Locked:",
   "sablefinder.ui.true": "§aTrue",
   "sablefinder.ui.false": "§cFalse",
 
@@ -151,6 +158,7 @@
   "sablefinder.message.delete.success": "Contraption Successfully deleted!",
   "sablefinder.message.delete.failed_title": "Failed to delete contraption",
   "sablefinder.message.delete.failed": "An error occurred while deleting the contraption. Check server logs.",
+
   "key.sableFinder.next_contraption": "Next Contraption",
-  "key.sableFinder.previous_contraption": "Previous"
+  "key.sableFinder.previous_contraption": "Previous Contraption"
 }

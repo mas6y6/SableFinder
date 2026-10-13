@@ -41,11 +41,11 @@ public record CheckExistencePacket(UUID requestId, boolean isServerHasMod, boole
         return TYPE;
     }
 
-    public static void handleServer(CheckExistencePacket packet, IPayloadContext iPayloadContext) {
+    public static void handleServer(@NotNull CheckExistencePacket packet, IPayloadContext iPayloadContext) {
         PacketRequests.complete(packet);
     }
 
-    public static void handleClient(CheckExistencePacket packet, IPayloadContext iPayloadContext) {
+    public static void handleClient(@NotNull CheckExistencePacket packet, @NotNull IPayloadContext iPayloadContext) {
         iPayloadContext.enqueueWork(() -> {
             if (packet.isServerHasMod()) {
                 iPayloadContext.reply(new CheckExistencePacket(packet.requestId(), true, true));

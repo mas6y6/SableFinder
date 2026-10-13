@@ -13,6 +13,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.neoforge.network.PacketDistributor;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.Objects;
 import java.util.Optional;
@@ -26,7 +27,7 @@ import static net.minecraft.commands.Commands.argument;
 public class SFCommands {
     private static final long RESPONSE_TIMEOUT_SECONDS = 5;
 
-    public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
+    public static void register(@NotNull CommandDispatcher<CommandSourceStack> dispatcher) {
         dispatcher.register(
                 Commands.literal("sablefinder")
                         .then(
@@ -49,7 +50,7 @@ public class SFCommands {
         );
     }
 
-    private static int executeVIEWUUID(CommandContext<CommandSourceStack> context) {
+    private static int executeVIEWUUID(@NotNull CommandContext<CommandSourceStack> context) {
         if (!context.getSource().isPlayer()) {
             context.getSource().sendFailure(Component.translatable("sablefinder.message.not_player"));
             return 0;
@@ -102,7 +103,7 @@ public class SFCommands {
         return 0;
     }
 
-    private static int executeOPENGUI(CommandContext<CommandSourceStack> context) {
+    private static int executeOPENGUI(@NotNull CommandContext<CommandSourceStack> context) {
         if (!context.getSource().isPlayer()) {
             context.getSource().sendFailure(Component.translatable("sablefinder.message.not_player"));
             return 0;
@@ -147,7 +148,7 @@ public class SFCommands {
         return 0;
     }
 
-    private static boolean awaitClientResponse(ServerPlayer player) {
+    private static boolean awaitClientResponse(@NotNull ServerPlayer player) {
         final UUID requestId = PacketRequests.newId();
         try {
             return PacketRequests.sendToPlayer(player, new CheckExistencePacket(requestId, true, false))

@@ -1,7 +1,7 @@
 package com.mas6y6.sablefinder.mixin;
 
 import com.mas6y6.sablefinder.mixin.accesors.PhysicsStaffLockAccessor;
-import com.mas6y6.sablefinder.mixin.interfaces.ISFPhysicsStaffServerHandler;
+import com.mas6y6.sablefinder.mixininterface.ISFPhysicsStaffServerHandler;
 import dev.ryanhcode.sable.api.physics.constraint.PhysicsConstraintHandle;
 import dev.ryanhcode.sable.api.sublevel.SubLevelContainer;
 import dev.ryanhcode.sable.sublevel.SubLevel;
@@ -9,6 +9,7 @@ import dev.simulated_team.simulated.content.physics_staff.PhysicsStaffServerHand
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.NbtUtils;
 import net.minecraft.server.level.ServerLevel;
+import org.jetbrains.annotations.NotNull;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -32,7 +33,7 @@ public abstract class PhysicsStaffServerHandlerMixin implements ISFPhysicsStaffS
     abstract void setLocksDirty();
 
     @Override
-    public void lockContraption(UUID uuid) {
+    public void lockContraption(@NotNull UUID uuid) {
         if (this.locks.containsKey(uuid)) {
             return;
         }

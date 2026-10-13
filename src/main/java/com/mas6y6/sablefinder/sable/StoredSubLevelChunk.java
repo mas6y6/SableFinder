@@ -17,6 +17,8 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunkSection;
 import net.minecraft.world.level.chunk.PalettedContainer;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -51,7 +53,7 @@ public class StoredSubLevelChunk {
         this.tag = tag;
     }
 
-    public static StoredSubLevelChunk fromNbt(final ChunkPos pos, final CompoundTag chunkTag, final Level level, final ResourceKey<Biome> biome) {
+    public static @NotNull StoredSubLevelChunk fromNbt(final ChunkPos pos, final @NotNull CompoundTag chunkTag, final @Nullable Level level, final @NotNull ResourceKey<Biome> biome) {
         final boolean isLightOn = chunkTag.getBoolean("isLightOn");
         final ListTag blockEntities = chunkTag.getList("block_entities", Tag.TAG_COMPOUND);
         final ListTag blockTicks = chunkTag.getList("block_ticks", Tag.TAG_COMPOUND);
@@ -125,7 +127,7 @@ public class StoredSubLevelChunk {
         return this.sectionLightData.get(sectionIndex);
     }
 
-    public Map<Integer, LevelChunkSection> sections() {
+    public @NotNull Map<Integer, LevelChunkSection> sections() {
         return this.sections;
     }
 
@@ -133,7 +135,7 @@ public class StoredSubLevelChunk {
         return this.sections.get(sectionY);
     }
 
-    public BlockState getBlockState(final int localX, final int localY, final int localZ) {
+    public @NotNull BlockState getBlockState(final int localX, final int localY, final int localZ) {
         final LevelChunkSection section = this.sections.get(Math.floorDiv(localY, 16));
         if (section == null) {
             return Blocks.AIR.defaultBlockState();

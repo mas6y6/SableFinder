@@ -31,7 +31,7 @@ public record GetSableContraptionListPacket(UUID requestId, CompoundTag sableCon
         return TYPE;
     }
 
-    public static void handleClient(GetSableContraptionListPacket packet, IPayloadContext iPayloadContext) {
+    public static void handleClient(@NotNull GetSableContraptionListPacket packet, @NotNull IPayloadContext iPayloadContext) {
         iPayloadContext.enqueueWork(() -> PacketRequests.complete(packet));
     }
 }

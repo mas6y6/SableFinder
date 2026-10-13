@@ -18,14 +18,14 @@ public record GetSableContraptionPacket(UUID requestId, SableContraptionData con
 
     public static final StreamCodec<ByteBuf, GetSableContraptionPacket> STREAM_CODEC = StreamCodec.of(GetSableContraptionPacket::write, GetSableContraptionPacket::read);
 
-    private static GetSableContraptionPacket read(ByteBuf byteBuf) {
+    private static @NotNull GetSableContraptionPacket read(@NotNull ByteBuf byteBuf) {
         return new GetSableContraptionPacket(
                 UUIDUtil.STREAM_CODEC.decode(byteBuf),
                 SableContraptionData.STREAM_CODEC.decode(byteBuf)
         );
     }
 
-    private static void write(ByteBuf byteBuf, GetSableContraptionPacket getSableContraptionPacket) {
+    private static void write(@NotNull ByteBuf byteBuf, @NotNull GetSableContraptionPacket getSableContraptionPacket) {
         UUIDUtil.STREAM_CODEC.encode(byteBuf, getSableContraptionPacket.requestId());
         SableContraptionData.STREAM_CODEC.encode(byteBuf, getSableContraptionPacket.contraption());
     }
@@ -35,7 +35,7 @@ public record GetSableContraptionPacket(UUID requestId, SableContraptionData con
         return TYPE;
     }
 
-    public static void handleClient(GetSableContraptionPacket packet, IPayloadContext iPayloadContext) {
+    public static void handleClient(@NotNull GetSableContraptionPacket packet, @NotNull IPayloadContext iPayloadContext) {
         iPayloadContext.enqueueWork(() -> PacketRequests.complete(packet));
     }
 }

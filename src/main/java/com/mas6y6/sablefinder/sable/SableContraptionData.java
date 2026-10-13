@@ -20,6 +20,8 @@ import net.minecraft.world.level.biome.Biomes;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunkSection;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.joml.Quaterniond;
 import org.joml.Vector3d;
 
@@ -196,7 +198,7 @@ public class SableContraptionData {
         this.dimension = dimension;
     }
 
-    private static Vector3d readOptionalVector3d(final CompoundTag tag, final String key) {
+    private static @Nullable Vector3d readOptionalVector3d(final @NotNull CompoundTag tag, final @NotNull String key) {
         if (!tag.contains(key)) {
             return null;
         }
@@ -204,7 +206,7 @@ public class SableContraptionData {
         return new Vector3d(vector.getDouble("x"), vector.getDouble("y"), vector.getDouble("z"));
     }
 
-    public static SableContraptionData parse(final SubLevelData data, final ServerLevel level, boolean isloaded) {
+    public static @NotNull SableContraptionData parse(final @NotNull SubLevelData data, final @NotNull ServerLevel level, boolean isloaded) {
         final CompoundTag fullTag = data.fullTag();
         final CompoundTag plot = fullTag.getCompound("plot");
         final CompoundTag chunksTag = plot.getCompound("chunks");
@@ -343,14 +345,14 @@ public class SableContraptionData {
         return this.chunks.size();
     }
 
-    public StoredSubLevelChunk getChunk(final ChunkPos localPos) {
+    public StoredSubLevelChunk getChunk(final @NotNull ChunkPos localPos) {
         if (this.chunks.isEmpty()) {
             ensureChunksLoaded(null);
         }
         return this.chunks.get(localPos.toLong());
     }
 
-    public Collection<StoredSubLevelChunk> getChunks() {
+    public @NotNull Collection<StoredSubLevelChunk> getChunks() {
         if (this.chunks.isEmpty()) {
             ensureChunksLoaded(null);
         }
@@ -368,11 +370,11 @@ public class SableContraptionData {
         return chunk.getBlockState(x & 15, y, z & 15);
     }
 
-    public BlockState getBlockState(final BlockPos pos) {
+    public BlockState getBlockState(final @NotNull BlockPos pos) {
         return this.getBlockState(pos.getX(), pos.getY(), pos.getZ());
     }
 
-    public void forEachBlock(final BiConsumer<BlockPos, BlockState> consumer) {
+    public void forEachBlock(final @NotNull BiConsumer<BlockPos, BlockState> consumer) {
         if (this.chunks.isEmpty()) {
             ensureChunksLoaded(null);
         }

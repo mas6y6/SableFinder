@@ -10,6 +10,8 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -27,7 +29,7 @@ public class SearchEngine {
 
     private static final Map<UUID, AtomicBoolean> ACTIVE_SEARCHES = new ConcurrentHashMap<>();
 
-    public static void searchPacket(SearchForContraptionsPacket packet, IPayloadContext iPayloadContext) {
+    public static void searchPacket(@NotNull SearchForContraptionsPacket packet, @NotNull IPayloadContext iPayloadContext) {
         final SearchFilters filters = packet.searchFilters();
         final MinecraftServer server = SableFinder.getServer();
 
@@ -79,7 +81,7 @@ public class SearchEngine {
                 || (error instanceof CompletionException && error.getCause() instanceof CancellationException);
     }
 
-    private static CompoundTag search(List<SableContraptionData> contraptions, SearchFilters filters, AtomicBoolean cancelled) {
+    private static @NotNull CompoundTag search(@NotNull List<SableContraptionData> contraptions, @NotNull SearchFilters filters, @NotNull AtomicBoolean cancelled) {
         final Pattern namePattern = filters.useNameSearch() ? globToPattern(filters.nameSearch()) : null;
         final Pattern uuidPattern = filters.useUUIDSearch() ? globToPattern(filters.uuidSearch()) : null;
         final Map<ResourceLocation, Integer> requiredBlocks = filters.useBlockSearch()
@@ -101,7 +103,7 @@ public class SearchEngine {
         return SableUtils.buildContraptionsTag(matches);
     }
 
-    private static Map<ResourceLocation, Integer> requiredBlockCounts(List<BlockFilter> blockFilters) {
+    private static @NotNull Map<ResourceLocation, Integer> requiredBlockCounts(@NotNull List<BlockFilter> blockFilters) {
         final Map<ResourceLocation, Integer> required = new HashMap<>();
 
         for (final BlockFilter filter : blockFilters) {
@@ -111,8 +113,8 @@ public class SearchEngine {
         return required;
     }
 
-    private static boolean matches(SableContraptionData contraption, SearchFilters filters,
-                                   Pattern namePattern, Pattern uuidPattern, Map<ResourceLocation, Integer> requiredBlocks) {
+    private static boolean matches(@NotNull SableContraptionData contraption, @NotNull SearchFilters filters,
+                                   @Nullable Pattern namePattern, @Nullable Pattern uuidPattern, @Nullable Map<ResourceLocation, Integer> requiredBlocks) {
         if (namePattern != null) {
             final String name = contraption.displayName() != null ? contraption.displayName() : "";
             if (!namePattern.matcher(name).matches()) {
@@ -131,8 +133,8 @@ public class SearchEngine {
         return true;
     }
 
-    private static boolean matchesBlocks(SableContraptionData contraption, SearchFilters filters,
-                                         Map<ResourceLocation, Integer> requiredBlocks) {
+    private static boolean matchesBlocks(@NotNull SableContraptionData contraption, @NotNull SearchFilters filters,
+                                         @Nullable Map<ResourceLocation, Integer> requiredBlocks) {
         final int[] total = {0};
         final Map<ResourceLocation, Integer> found = new HashMap<>();
 
@@ -162,7 +164,7 @@ public class SearchEngine {
         return true;
     }
 
-    private static boolean matchesBlockSize(SearchFilters filters, int blockCount) {
+    private static boolean matchesBlockSize(@NotNull SearchFilters filters, int blockCount) {
         final int requested = filters.blockSize();
         return switch (filters.blockSearchMethod()) {
             case EQUAL -> blockCount == requested;
@@ -172,7 +174,7 @@ public class SearchEngine {
         };
     }
 
-    private static Pattern globToPattern(String glob) {
+    private static @NotNull Pattern globToPattern(@NotNull String glob) {
         final StringBuilder regex = new StringBuilder();
 
         for (int i = 0; i < glob.length(); i++) {
@@ -221,7 +223,7 @@ public class SearchEngine {
         }
     }
 
-    private static String escapeRegex(char c) {
+    private static @NotNull String escapeRegex(char c) {
         return "\\.^$|+(){}]".indexOf(c) != -1 ? "\\" + c : String.valueOf(c);
     }
 }
