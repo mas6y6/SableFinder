@@ -29,7 +29,9 @@ public final class SearchRequest {
     public void cancel() {
         PacketRequests.cancel(requestId);
 
-        if (Minecraft.getInstance().getConnection() != null) {
+        // The local future is cancelled either way; only tell the server to stop working if the
+        // versions actually lined up, since a mismatched codec could not be read back anyway.
+        if (ClientPayloadHandler.isCompatible() && Minecraft.getInstance().getConnection() != null) {
             PacketDistributor.sendToServer(new CancelSearchPacket(requestId));
         }
     }

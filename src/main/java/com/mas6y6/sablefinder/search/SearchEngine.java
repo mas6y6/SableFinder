@@ -7,6 +7,7 @@ import com.mas6y6.sablefinder.sable.SableContraptionData;
 import com.mas6y6.sablefinder.sable.SableUtils;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
@@ -19,6 +20,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -41,7 +43,22 @@ public class SearchEngine {
         final AtomicBoolean cancelled = new AtomicBoolean(false);
         ACTIVE_SEARCHES.put(packet.requestId(), cancelled);
 
-        SableUtils.getAllContraptionsAsync(server, filters.saveServer(), cancelled)
+        final CompletableFuture<List<SableContraptionData>> scan;
+        try {
+            scan = SableUtils.getAllContraptionsAsync(server, filters.saveServer(), cancelled);
+        } catch (Exception exception) {
+            ACTIVE_SEARCHES.remove(packet.requestId());
+            SableFinder.LOGGER.error("Failed to start a contraption search", exception);
+
+            iPayloadContext.reply(new SearchForContraptionsResponsePacket(
+                    packet.requestId(),
+                    errorTag(errorReason(exception))
+            ));
+
+            return;
+        }
+
+        scan
                 .whenComplete((contraptions, error) -> {
                     ACTIVE_SEARCHES.remove(packet.requestId());
 
@@ -66,7 +83,26 @@ public class SearchEngine {
                     if (server.isRunning()) {
                         server.execute(() -> iPayloadContext.reply(new SearchForContraptionsResponsePacket(packet.requestId(), result)));
                     }
+                }).exceptionally(throwable -> {
+                    SableFinder.LOGGER.error("An error occurred while searching for contraptions", throwable);
+
+                    if (server.isRunning()) {
+                        server.execute(() -> iPayloadContext.reply(new SearchForContraptionsResponsePacket(
+                                packet.requestId(),
+                                errorTag(errorReason(throwable))
+                        )));
+                    }
+
+                    return null;
                 });
+    }
+
+    private static @NotNull Component errorReason(@NotNull Throwable throwable) {
+        final Throwable cause = throwable.getCause() != null ? throwable.getCause() : throwable;
+
+        return cause.getMessage() != null
+                ? Component.literal(cause.getMessage())
+                : Component.translatable("sablefinder.ui.error.unknown");
     }
 
     public static void cancel(UUID requestId) {
@@ -74,6 +110,14 @@ public class SearchEngine {
         if (cancelled != null) {
             cancelled.set(true);
         }
+    }
+
+    public static final String ERROR_KEY = "sablefinderSearchError";
+
+    private static @NotNull CompoundTag errorTag(@NotNull Component reason) {
+        final CompoundTag tag = new CompoundTag();
+        tag.putString(ERROR_KEY, Component.translatable("sablefinder.ui.error.search", reason).getString());
+        return tag;
     }
 
     private static boolean isCancellation(Throwable error) {

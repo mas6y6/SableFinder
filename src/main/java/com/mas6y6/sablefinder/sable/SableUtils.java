@@ -1,6 +1,7 @@
 package com.mas6y6.sablefinder.sable;
 
 import com.mas6y6.sablefinder.SableFinder;
+import com.mas6y6.sablefinder.config.ConfigServer;
 import com.mas6y6.sablefinder.simulated.SimulatedCompat;
 import dev.ryanhcode.sable.api.sublevel.ServerSubLevelContainer;
 import dev.ryanhcode.sable.sublevel.SubLevel;
@@ -39,14 +40,18 @@ public class SableUtils {
         return thread;
     });
 
-    private static final long SUGGESTION_CACHE_TTL_MS = 30_000L;
     private static final AtomicBoolean SUGGESTION_CACHE_REFRESH_IN_FLIGHT = new AtomicBoolean(false);
+
+    private static final AtomicBoolean SUB_LEVEL_SAVE_IN_FLIGHT = new AtomicBoolean(false);
+
+    private static volatile @Nullable MinecraftServer lastSavedServer = null;
+    private static volatile long lastSubLevelSaveAt = 0L;
 
     private static volatile @NotNull List<UUID> cachedContraptionUuids = List.of();
     private static volatile long cachedContraptionUuidsAt = 0L;
 
     public static @NotNull List<SableContraptionData> getAllContraptions(@NotNull MinecraftServer server) {
-        return getAllContraptions(server, true);
+        return getAllContraptions(server, false);
     }
 
     public static @NotNull List<SableContraptionData> getAllContraptions(@NotNull MinecraftServer server, boolean saveWorld) {
@@ -55,7 +60,7 @@ public class SableUtils {
     }
 
     public static @NotNull CompletableFuture<List<SableContraptionData>> getAllContraptionsAsync(@NotNull MinecraftServer server) {
-        return getAllContraptionsAsync(server, true);
+        return getAllContraptionsAsync(server, false);
     }
 
     public static @NotNull CompletableFuture<List<SableContraptionData>> getAllContraptionsAsync(@NotNull MinecraftServer server, boolean saveWorld) {
@@ -71,7 +76,7 @@ public class SableUtils {
     }
 
     public static List<UUID> getCachedContraptionUuids(@NotNull MinecraftServer server) {
-        if (System.currentTimeMillis() - cachedContraptionUuidsAt > SUGGESTION_CACHE_TTL_MS) {
+        if (System.currentTimeMillis() - cachedContraptionUuidsAt > ConfigServer.suggestionCacheTtlMs()) {
             refreshContraptionUuidCache(server);
         }
 
@@ -114,16 +119,46 @@ public class SableUtils {
             return;
         }
 
-        SableFinder.LOGGER.info("Saving sub-levels...");
+        if (lastSavedServer != server) {
+            lastSavedServer = server;
+            lastSubLevelSaveAt = 0L;
+        }
 
-        for (final ServerLevel level : server.getAllLevels()) {
-            final ServerSubLevelContainer container = ServerSubLevelContainer.getContainer(level);
+        final long minInterval = ConfigServer.subLevelSaveMinIntervalMs();
+        final long now = System.currentTimeMillis();
+        if (minInterval > 0L && now - lastSubLevelSaveAt < minInterval) {
+            SableFinder.LOGGER.debug("Skipping sub-level save: ran less than {}ms ago", minInterval);
+            return;
+        }
 
-            if (container == null) {
-                continue;
+        if (!SUB_LEVEL_SAVE_IN_FLIGHT.compareAndSet(false, true)) {
+            return;
+        }
+
+        try {
+            lastSubLevelSaveAt = now;
+
+            SableFinder.LOGGER.info("Saving sub-levels...");
+
+            for (final ServerLevel level : server.getAllLevels()) {
+                final ServerSubLevelContainer container = ServerSubLevelContainer.getContainer(level);
+
+                if (container == null) {
+                    continue;
+                }
+
+                try {
+                    container.getHoldingChunkMap().saveAll();
+                } catch (Exception exception) {
+                    SableFinder.LOGGER.error(
+                            "Failed to save sub-levels for dimension {}; the scan may return stale data",
+                            level.dimension().location(),
+                            exception
+                    );
+                }
             }
-
-            container.getHoldingChunkMap().saveAll();
+        } finally {
+            SUB_LEVEL_SAVE_IN_FLIGHT.set(false);
         }
     }
 
@@ -185,11 +220,15 @@ public class SableUtils {
     }
 
     public static @NotNull CompoundTag buildContraptionsTag(@NotNull MinecraftServer server) {
-        return buildContraptionsTag(getAllContraptions(server));
+        return buildContraptionsTag(getAllContraptions(server, false));
     }
 
     public static @NotNull CompletableFuture<CompoundTag> buildContraptionsTagAsync(@NotNull MinecraftServer server) {
-        return getAllContraptionsAsync(server).thenApply(SableUtils::buildContraptionsTag);
+        return buildContraptionsTagAsync(server, false);
+    }
+
+    public static @NotNull CompletableFuture<CompoundTag> buildContraptionsTagAsync(@NotNull MinecraftServer server, boolean saveWorld) {
+        return getAllContraptionsAsync(server, saveWorld).thenApply(SableUtils::buildContraptionsTag);
     }
 
     public static @NotNull CompoundTag buildContraptionsTag(@NotNull List<SableContraptionData> contraptions) {

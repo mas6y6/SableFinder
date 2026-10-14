@@ -2,6 +2,7 @@ package com.mas6y6.sablefinder.client;
 
 import com.mas6y6.sablefinder.search.BlockFilter;
 import com.mas6y6.sablefinder.search.BlockSearchMethod;
+import com.mas6y6.sablefinder.search.SearchEngine;
 import com.mas6y6.sablefinder.search.SearchFilters;
 import io.wispforest.owo.ui.base.BaseOwoScreen;
 import io.wispforest.owo.ui.component.BlockComponent;
@@ -611,6 +612,10 @@ public class SearchScreen extends BaseOwoScreen<FlowLayout> {
     // --- actions -----------------------------------------------------------
 
     private void onSearchButtonPressed() {
+        // Nothing will be sent, so don't spin the UI waiting for a response that never arrives.
+        if (!ClientPayloadHandler.allowOperation()) {
+            return;
+        }
         if (searching) {
             cancelSearch();
         } else {
@@ -650,6 +655,14 @@ public class SearchScreen extends BaseOwoScreen<FlowLayout> {
                                 : Component.translatable("sablefinder.ui.error.unknown").getString();
 
                         statusLabel.text(Component.translatable("sablefinder.ui.error.search", reason));
+                        return;
+                    }
+
+                    // The server reports scan/flush failures through the result tag so they
+                    // reach the player instead of the future dying on the scan thread.
+                    final String searchError = tag.getString(SearchEngine.ERROR_KEY);
+                    if (!searchError.isEmpty()) {
+                        statusLabel.text(Component.literal(searchError));
                         return;
                     }
 

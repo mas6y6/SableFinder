@@ -167,7 +167,28 @@
   "sablefinder.message.delete.failed_title": "Failed to delete contraption",
   "sablefinder.message.delete.failed": "An error occurred while deleting the contraption. Check server logs.",
 
+  "sablefinder.message.save_test.usage": "Usage: /sablefinder save_test confirm <1-%s>. Runs the sub-level flush off-thread against live world data - use a throwaway world.",
+  "sablefinder.message.save_test.started": "Running %s off-thread sub-level save iteration(s); the server will keep ticking. Watch the log.",
+  "sablefinder.message.save_test.clean": "Off-thread save test finished with no errors - %s",
+  "sablefinder.message.save_test.unstable": "Off-thread save test hit errors - %s",
+  "sablefinder.message.save_test.crashed": "The off-thread save test failed to run: %s",
+
+  "sablefinder.configuration.suggestion_cache_ttl_ms": "Suggestion cache TTL (ms)",
+  "sablefinder.configuration.sub_level_save_min_interval_ms": "Sub-level save interval (ms)",
+
+  "sablefinder.config.title": "SableFinder Config",
+  "sablefinder.config.subtitle": "Server settings. Changes apply immediately.",
+  "sablefinder.config.save": "Save",
+  "sablefinder.config.reset": "Reset",
+
+  "sablefinder.config.suggestion_cache_ttl_ms": "Suggestion cache TTL (ms)",
+  "sablefinder.config.suggestion_cache_ttl_ms.tooltip": "How long the cached list of contraption UUIDs stays fresh.\nOnly feeds /sablefinder view_uuid suggestions.\nEvery refresh scans every stored sub-level on disk.",
+  "sablefinder.config.sub_level_save_min_interval_ms": "Sub-level save interval (ms)",
+  "sablefinder.config.sub_level_save_min_interval_ms.tooltip": "Minimum time between two sub-level flushes.\nA flush walks the live holding chunk map on the server thread,\nso doing it every request can stall the tick.\nSet to 0 to disable the throttle.\nOnly used when 'Flush sub-level data before searching' is on.",
+
   "key.sableFinder.next_contraption": "Next Contraption",
   "key.sableFinder.previous_contraption": "Previous Contraption",
-  "sablefinder.ui.coming_soon": "Coming Soon!"
+  "sablefinder.ui.coming_soon": "Coming Soon!",
+  "sablefinder.config.save": "Save",
+  "sablefinder.config.reset": "Reset"
 }

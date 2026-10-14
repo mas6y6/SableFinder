@@ -106,6 +106,10 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
 
     // Gets normal contraptions from the server
     private void resetAndRefreshContraptions() {
+        if (!ClientPayloadHandler.allowOperation()) {
+            return;
+        }
+
         this.isSearchResults = false;
         setReloadingState(true);
 
@@ -154,6 +158,10 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
     }
 
     private void selectContraption(UUID uuid) {
+        if (!ClientPayloadHandler.isCompatible()) {
+            return;
+        }
+
         this.selectedUuid = uuid;
         this.selectedContraptionIndex = indexOfContraption(uuid);
         // Remember it so reopening the browser lands on the same contraption.
@@ -958,6 +966,12 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
                     if (!confirmDelete.get()) {
                         confirmDelete.set(true);
                         button.setMessage(Component.translatable("sablefinder.ui.delete_confirm"));
+                        return;
+                    }
+
+                    if (!ClientPayloadHandler.allowOperation()) {
+                        confirmDelete.set(false);
+                        button.setMessage(Component.translatable("sablefinder.ui.button.delete"));
                         return;
                     }
 

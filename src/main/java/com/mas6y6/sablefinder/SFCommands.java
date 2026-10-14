@@ -6,6 +6,7 @@ import com.mas6y6.sablefinder.networking.OpenGUIPacket;
 import com.mas6y6.sablefinder.networking.PacketRequests;
 import com.mas6y6.sablefinder.sable.SableUtils;
 import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import net.minecraft.commands.CommandSourceStack;
@@ -47,6 +48,7 @@ public class SFCommands {
                         .then(Commands.literal("open").executes(SFCommands::executeOPENGUI))
         );
     }
+
 
     private static int executeVIEWUUID(@NotNull CommandContext<CommandSourceStack> context) {
         if (!context.getSource().isPlayer()) {
