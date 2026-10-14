@@ -1,16 +1,13 @@
 package com.mas6y6.sablefinder;
 
 import com.mas6y6.sablefinder.client.ClientPayloadHandler;
-import com.mas6y6.sablefinder.client.ConfigScreen;
 import com.mas6y6.sablefinder.client.SableFinderScreen;
 import com.mas6y6.sablefinder.config.ConfigClient;
 import com.mas6y6.sablefinder.networking.PacketRequests;
 import io.wispforest.owo.config.ui.ConfigScreenProviders;
-import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.logging.LogUtils;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.toasts.SystemToast;
-import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.IEventBus;
@@ -38,17 +35,10 @@ public class SableFinderClient {
         NeoForge.EVENT_BUS.addListener(this::onLoggingOut);
         NeoForge.EVENT_BUS.addListener(this::onRegisterClientCommands);
 
-        ConfigScreenProviders.register(SableFinder.MODID, ConfigScreen::create);
     }
 
     private void onRegisterClientCommands(@NotNull RegisterClientCommandsEvent event) {
-        event.getDispatcher().register(
-                Commands.literal("sablefinder")
-                        .then(Commands.literal("config").executes(context -> {
-                            Minecraft.getInstance().setScreen(ConfigScreen.create(null));
-                            return 0;
-                        }))
-        );
+
     }
 
     @SubscribeEvent

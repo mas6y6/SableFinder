@@ -54,9 +54,10 @@ public class SFCommands {
         if (!context.getSource().isPlayer()) {
             context.getSource().sendFailure(Component.translatable("sablefinder.message.not_player"));
             return 0;
+
         }
 
-        if (!context.getSource().hasPermission(3)) {
+        if (!context.getSource().hasPermission(Commands.LEVEL_ADMINS)) {
             context.getSource().sendFailure(Component.translatable("sablefinder.message.no_permission"));
             return 0;
         }
@@ -105,7 +106,7 @@ public class SFCommands {
             return 0;
         }
 
-        if (!context.getSource().hasPermission(3)) {
+        if (!context.getSource().hasPermission(Commands.LEVEL_ADMINS)) {
             context.getSource().sendFailure(Component.translatable("sablefinder.message.no_permission"));
             return 0;
         }
