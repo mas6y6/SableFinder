@@ -118,8 +118,6 @@
   "sablefinder.ui.search.cancel": "Cancel",
   "sablefinder.ui.search.cancelled": "§7Search cancelled.",
   "sablefinder.ui.search.title": "§6Search Contraptions",
-  "sablefinder.ui.search.save_server": "Save server before searching",
-  "sablefinder.ui.search.save_server.tooltip": "Flushes sub-level data first so the freshest contraptions are found. Slower.",
   "sablefinder.ui.search.name": "Match name",
   "sablefinder.ui.search.name.hint": "Glob pattern, e.g. My*Ship",
   "sablefinder.ui.search.uuid": "Match UUID",
@@ -185,8 +183,6 @@
 
   "sablefinder.configuration.suggestion_cache_ttl_ms": "Suggestion cache TTL (ms)",
   "sablefinder.configuration.suggestion_cache_ttl_ms.tooltip": "How long the cached list of contraption UUIDs stays fresh.\nOnly feeds /sablefinder view_uuid suggestions.\nEvery refresh scans every stored sub-level on disk.",
-  "sablefinder.configuration.sub_level_save_min_interval_ms": "Sub-level save interval (ms)",
-  "sablefinder.configuration.sub_level_save_min_interval_ms.tooltip": "Minimum time between two sub-level flushes.\nA flush walks the live holding chunk map on the server thread,\nso doing it every request can stall the tick.\nSet to 0 to disable the throttle.\nOnly used when 'Flush sub-level data before searching' is on.",
 
   "key.sableFinder.next_contraption": "Next Contraption",
   "key.sableFinder.previous_contraption": "Previous Contraption",

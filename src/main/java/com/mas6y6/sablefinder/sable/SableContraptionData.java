@@ -49,7 +49,7 @@ public class SableContraptionData {
     private final List<UUID> dependencies;
     private final CompoundTag userData;
     private final CompoundTag fullTag;
-    private final boolean isloaded;
+    private final boolean isLoaded;
     private final ResourceKey<Level> dimension;
     private final boolean locked;
 
@@ -149,7 +149,7 @@ public class SableContraptionData {
                 UUID_LIST.encode(buf, data.dependencies);
                 NULLABLE_COMPOUND_TAG.encode(buf, data.userData);
                 ByteBufCodecs.TRUSTED_COMPOUND_TAG.encode(buf, data.fullTag);
-                buf.writeBoolean(data.isloaded);
+                buf.writeBoolean(data.isLoaded);
                 DIMENSION_KEY.encode(buf, data.dimension);
                 buf.writeBoolean(data.locked);
             },
@@ -197,7 +197,7 @@ public class SableContraptionData {
         this.dependencies = dependencies;
         this.userData = userData;
         this.fullTag = fullTag;
-        this.isloaded = isloaded;
+        this.isLoaded = isloaded;
         this.dimension = dimension;
         this.locked = locked;
     }
@@ -211,6 +211,11 @@ public class SableContraptionData {
     }
 
     public static @NotNull SableContraptionData parse(final @NotNull SubLevelData data, final @NotNull ServerLevel level, boolean isloaded, boolean locked) {
+        return parse(data, level, isloaded, locked, true);
+    }
+
+    public static @NotNull SableContraptionData parse(final @NotNull SubLevelData data, final @NotNull ServerLevel level,
+                                                      boolean isloaded, boolean locked, boolean loadChunks) {
         final CompoundTag fullTag = data.fullTag();
         final CompoundTag plot = fullTag.getCompound("plot");
         final CompoundTag chunksTag = plot.getCompound("chunks");
@@ -238,13 +243,15 @@ public class SableContraptionData {
                 locked
         );
 
-        for (final String key : chunksTag.getAllKeys()) {
-            final long packed = Long.parseLong(key);
-            final ChunkPos local = new ChunkPos(ChunkPos.getX(packed), ChunkPos.getZ(packed));
-            final StoredSubLevelChunk chunk = StoredSubLevelChunk.fromNbt(
-                    local, chunksTag.getCompound(key), level, biome
-            );
-            contraption.chunks.put(packed, chunk);
+        if (loadChunks) {
+            for (final String key : chunksTag.getAllKeys()) {
+                final long packed = Long.parseLong(key);
+                final ChunkPos local = new ChunkPos(ChunkPos.getX(packed), ChunkPos.getZ(packed));
+                final StoredSubLevelChunk chunk = StoredSubLevelChunk.fromNbt(
+                        local, chunksTag.getCompound(key), level, biome
+                );
+                contraption.chunks.put(packed, chunk);
+            }
         }
 
         return contraption;
@@ -336,17 +343,13 @@ public class SableContraptionData {
     }
 
     public boolean isLoaded() {
-        return this.isloaded;
+        return this.isLoaded;
     }
 
     public ResourceKey<Level> dimension() {
         return this.dimension;
     }
 
-    /**
-     * Whether the physics staff is currently holding this contraption. Resolved on the server
-     * and shipped with the payload, so the client never has to reach into server state to ask.
-     */
     public boolean isLocked() {
         return this.locked;
     }

@@ -45,7 +45,7 @@ public class SearchEngine {
 
         final CompletableFuture<List<SableContraptionData>> scan;
         try {
-            scan = SableUtils.getAllContraptionsAsync(server, filters.saveServer(), cancelled);
+            scan = SableUtils.getAllContraptionsAsync(server, cancelled);
         } catch (Exception exception) {
             ACTIVE_SEARCHES.remove(packet.requestId());
             SableFinder.LOGGER.error("Failed to start a contraption search", exception);

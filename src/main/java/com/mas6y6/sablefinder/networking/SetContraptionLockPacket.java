@@ -70,7 +70,7 @@ public record SetContraptionLockPacket(UUID requestId, UUID contraptionId, boole
                 }
             }
 
-            SableUtils.getContraptionAsync(server, packet.contraptionId(), false).whenComplete((contraption, error) -> {
+            SableUtils.getContraptionAsync(server, packet.contraptionId()).whenComplete((contraption, error) -> {
                 if (error != null) {
                     SableFinder.LOGGER.error("An error occurred while loading contraption {} after a lock change for player {}",
                             packet.contraptionId(), player.getName().getString(), error);

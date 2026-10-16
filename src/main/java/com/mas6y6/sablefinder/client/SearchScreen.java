@@ -43,7 +43,6 @@ public class SearchScreen extends BaseOwoScreen<FlowLayout> {
     private static SearchConfig savedConfig;
 
     private record SearchConfig(
-            boolean saveServer,
             boolean useName,
             String name,
             boolean useUuid,
@@ -59,9 +58,6 @@ public class SearchScreen extends BaseOwoScreen<FlowLayout> {
     private final SableFinderScreen parent;
 
     // --- textual filters ---------------------------------------------------
-
-    private final CheckboxComponent saveServerCheckbox =
-            Components.checkbox(Component.translatable("sablefinder.ui.search.save_server"));
 
     private final CheckboxComponent useNameCheckbox =
             Components.checkbox(Component.translatable("sablefinder.ui.search.name"));
@@ -120,9 +116,6 @@ public class SearchScreen extends BaseOwoScreen<FlowLayout> {
     }
 
     private void configureComponents() {
-        saveServerCheckbox.checked(true);
-        saveServerCheckbox.tooltip(Component.translatable("sablefinder.ui.search.save_server.tooltip"));
-
         nameBox.setHint(Component.translatable("sablefinder.ui.search.name.hint"));
         nameBox.setMaxLength(256);
 
@@ -138,7 +131,6 @@ public class SearchScreen extends BaseOwoScreen<FlowLayout> {
         addBlockButton.horizontalSizing(Sizing.fixed(18));
         addBlockButton.verticalSizing(Sizing.fixed(18));
 
-        saveServerCheckbox.onChanged(checked -> onFilterToggled());
         useNameCheckbox.onChanged(checked -> onFilterToggled());
         nameBox.onChanged().subscribe(value -> onFilterToggled());
         useUuidCheckbox.onChanged(checked -> onFilterToggled());
@@ -152,7 +144,6 @@ public class SearchScreen extends BaseOwoScreen<FlowLayout> {
     private void loadConfig() {
         if (savedConfig == null) return;
 
-        saveServerCheckbox.checked(savedConfig.saveServer());
         useNameCheckbox.checked(savedConfig.useName());
         nameBox.text(savedConfig.name());
         useUuidCheckbox.checked(savedConfig.useUuid());
@@ -168,7 +159,6 @@ public class SearchScreen extends BaseOwoScreen<FlowLayout> {
 
     private void saveConfig() {
         savedConfig = new SearchConfig(
-                saveServerCheckbox.selected(),
                 useNameCheckbox.selected(),
                 nameBox.getValue(),
                 useUuidCheckbox.selected(),
@@ -254,10 +244,6 @@ public class SearchScreen extends BaseOwoScreen<FlowLayout> {
         final FlowLayout filters = Containers.verticalFlow(Sizing.fill(100), Sizing.content());
         filters.gap(5);
         filters.padding(Insets.right(4));
-
-        final FlowLayout serverCard = card();
-        serverCard.child(saveServerCheckbox);
-        filters.child(serverCard);
 
         final FlowLayout nameCard = card();
         nameCard.child(useNameCheckbox);
@@ -690,8 +676,6 @@ public class SearchScreen extends BaseOwoScreen<FlowLayout> {
     }
 
     private void resetFilters() {
-        saveServerCheckbox.checked(true);
-
         useNameCheckbox.checked(false);
         nameBox.text("");
 
@@ -742,8 +726,6 @@ public class SearchScreen extends BaseOwoScreen<FlowLayout> {
 
     private @NotNull SearchFilters buildFilters() {
         return new SearchFilters(
-                saveServerCheckbox.selected(),
-
                 useNameCheckbox.selected() && !nameBox.getValue().isBlank(),
                 nameBox.getValue(),
 

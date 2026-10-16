@@ -40,7 +40,7 @@ public record SableContraptionRequestPacket(UUID requestId, UUID contraptionId) 
         iPayloadContext.enqueueWork(() -> {
             if (iPayloadContext.player() instanceof ServerPlayer player) {
                 final MinecraftServer server = player.serverLevel().getServer();
-                SableUtils.getContraptionAsync(server, packet.contraptionId(), false).whenComplete((contraption, error) -> {
+                SableUtils.getContraptionAsync(server, packet.contraptionId()).whenComplete((contraption, error) -> {
                     if (error != null) {
                         SableFinder.LOGGER.error("An error occurred while loading contraption {} for player {}", packet.contraptionId(), player.getName().getString(), error);
                         return;
