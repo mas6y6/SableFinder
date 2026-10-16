@@ -17,6 +17,7 @@ import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.biome.Biomes;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunkSection;
@@ -388,6 +389,22 @@ public class SableContraptionData {
 
     public BlockState getBlockState(final @NotNull BlockPos pos) {
         return this.getBlockState(pos.getX(), pos.getY(), pos.getZ());
+    }
+
+    public void forEachBlockCount(final @NotNull BiConsumer<Block, Integer> consumer) {
+        if (this.chunks.isEmpty()) {
+            ensureChunksLoaded(null);
+        }
+
+        for (final StoredSubLevelChunk chunk : this.chunks.values()) {
+            for (final LevelChunkSection section : chunk.sections().values()) {
+                section.getStates().count((state, count) -> {
+                    if (!state.isAir()) {
+                        consumer.accept(state.getBlock(), count);
+                    }
+                });
+            }
+        }
     }
 
     public void forEachBlock(final @NotNull BiConsumer<BlockPos, BlockState> consumer) {

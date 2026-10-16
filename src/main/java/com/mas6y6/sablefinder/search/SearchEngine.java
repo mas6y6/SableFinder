@@ -7,6 +7,7 @@ import com.mas6y6.sablefinder.sable.SableContraptionData;
 import com.mas6y6.sablefinder.sable.SableUtils;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
@@ -179,17 +180,25 @@ public class SearchEngine {
 
     private static boolean matchesBlocks(@NotNull SableContraptionData contraption, @NotNull SearchFilters filters,
                                          @Nullable Map<ResourceLocation, BlockFilter> requiredBlocks) {
+        final Map<ResourceLocation, BlockFilter> required = requiredBlocks != null && !requiredBlocks.isEmpty()
+                ? requiredBlocks
+                : Map.of();
+
+        // Resolved once up front: matching on Block identity avoids a reverse registry lookup per block.
+        final Map<Block, ResourceLocation> wanted = new HashMap<>();
+        for (final ResourceLocation id : required.keySet()) {
+            wanted.put(BuiltInRegistries.BLOCK.get(id), id);
+        }
+
         final int[] total = {0};
         final Map<ResourceLocation, Integer> found = new HashMap<>();
 
-        contraption.forEachBlock((pos, state) -> {
-            total[0]++;
+        contraption.forEachBlockCount((block, count) -> {
+            total[0] += count;
 
-            if (requiredBlocks != null && !requiredBlocks.isEmpty()) {
-                final ResourceLocation id = BuiltInRegistries.BLOCK.getKey(state.getBlock());
-                if (requiredBlocks.containsKey(id)) {
-                    found.merge(id, 1, Integer::sum);
-                }
+            final ResourceLocation id = wanted.get(block);
+            if (id != null) {
+                found.merge(id, count, Integer::sum);
             }
         });
 
@@ -197,11 +206,9 @@ public class SearchEngine {
             return false;
         }
 
-        if (requiredBlocks != null) {
-            for (final BlockFilter requirement : requiredBlocks.values()) {
-                if (!requirement.matches(found.getOrDefault(requirement.block(), 0))) {
-                    return false;
-                }
+        for (final BlockFilter requirement : required.values()) {
+            if (!requirement.matches(found.getOrDefault(requirement.block(), 0))) {
+                return false;
             }
         }
 
