@@ -1,11 +1,11 @@
 package com.mas6y6.sablefinder.client;
 
-import com.mas6y6.sablefinder.networking.GetSableContraptionListPacket;
-import com.mas6y6.sablefinder.networking.GetSableContraptionPacket;
+import com.mas6y6.sablefinder.networking.SableContraptionListResponsePacket;
+import com.mas6y6.sablefinder.networking.SableContraptionResponsePacket;
 import com.mas6y6.sablefinder.networking.PacketRequests;
 import com.mas6y6.sablefinder.networking.SableContraptionListRequestPacket;
 import com.mas6y6.sablefinder.networking.SableContraptionRequestPacket;
-import com.mas6y6.sablefinder.networking.SearchForContraptionsPacket;
+import com.mas6y6.sablefinder.networking.SearchForContraptionsRequestPacket;
 import com.mas6y6.sablefinder.networking.SearchForContraptionsResponsePacket;
 import com.mas6y6.sablefinder.networking.SetContraptionLockPacket;
 import com.mas6y6.sablefinder.sable.SableContraptionData;
@@ -38,7 +38,7 @@ public final class SableContraptionClient {
         }
 
         return PacketRequests.sendToServer(new SableContraptionRequestPacket(PacketRequests.newId(), contraptionId))
-                .thenApply(GetSableContraptionPacket::contraption);
+                .thenApply(SableContraptionResponsePacket::contraption);
     }
 
     public static @NotNull CompletableFuture<CompoundTag> requestContraptionList() {
@@ -47,7 +47,7 @@ public final class SableContraptionClient {
         }
 
         return PacketRequests.sendToServer(new SableContraptionListRequestPacket(PacketRequests.newId()))
-                .thenApply(GetSableContraptionListPacket::sableContraptions);
+                .thenApply(SableContraptionListResponsePacket::sableContraptions);
     }
 
     public static @NotNull CompletableFuture<SableContraptionData> setLocked(UUID contraptionId, boolean locked) {
@@ -56,7 +56,7 @@ public final class SableContraptionClient {
         }
 
         return PacketRequests.sendToServer(new SetContraptionLockPacket(PacketRequests.newId(), contraptionId, locked))
-                .thenApply(GetSableContraptionPacket::contraption);
+                .thenApply(SableContraptionResponsePacket::contraption);
     }
 
     /**
@@ -67,7 +67,7 @@ public final class SableContraptionClient {
         final UUID requestId = PacketRequests.newId();
 
         final CompletableFuture<CompoundTag> future = ClientPayloadHandler.allowOperation()
-                ? PacketRequests.sendToServer(new SearchForContraptionsPacket(requestId, filters))
+                ? PacketRequests.sendToServer(new SearchForContraptionsRequestPacket(requestId, filters))
                         .thenApply(SearchForContraptionsResponsePacket::contraptions)
                 : blocked();
 

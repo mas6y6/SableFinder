@@ -35,12 +35,12 @@ public record DeleteContraptionPacket(UUID contraptionUUID) implements CustomPac
         iPayloadContext.enqueueWork(() -> {
             if (iPayloadContext.player() instanceof ServerPlayer player ) {
                 if (SableUtils.deleteContraption(player.server, packet.contraptionUUID())) {
-                    PacketDistributor.sendToPlayer(player, new ClientMessagePacket(
+                    PacketDistributor.sendToPlayer(player, new ClientToastMessagePacket(
                             Component.translatable("sablefinder.message.delete.title"),
                             Component.translatable("sablefinder.message.delete.success")
                     ));
                 } else {
-                    PacketDistributor.sendToPlayer(player, new ClientMessagePacket(
+                    PacketDistributor.sendToPlayer(player, new ClientToastMessagePacket(
                             Component.translatable("sablefinder.message.delete.failed_title"),
                             Component.translatable("sablefinder.message.delete.failed")
                     ));

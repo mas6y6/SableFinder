@@ -18,7 +18,7 @@ import org.jetbrains.annotations.NotNull;
 import java.util.UUID;
 
 public record SetContraptionLockPacket(UUID requestId, UUID contraptionId, boolean locked)
-        implements RequestPayload<GetSableContraptionPacket> {
+        implements RequestPayload<SableContraptionResponsePacket> {
 
     public static final CustomPacketPayload.Type<SetContraptionLockPacket> TYPE =
             new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath(SableFinder.MODID, "set_contraption_lock"));
@@ -40,8 +40,8 @@ public record SetContraptionLockPacket(UUID requestId, UUID contraptionId, boole
     }
 
     @Override
-    public CustomPacketPayload.@NotNull Type<GetSableContraptionPacket> responseType() {
-        return GetSableContraptionPacket.TYPE;
+    public CustomPacketPayload.@NotNull Type<SableContraptionResponsePacket> responseType() {
+        return SableContraptionResponsePacket.TYPE;
     }
 
     public static void handleServer(@NotNull SetContraptionLockPacket packet, @NotNull IPayloadContext iPayloadContext) {
@@ -78,7 +78,7 @@ public record SetContraptionLockPacket(UUID requestId, UUID contraptionId, boole
                 }
 
                 if (contraption != null && server.isRunning()) {
-                    server.execute(() -> iPayloadContext.reply(new GetSableContraptionPacket(packet.requestId(), contraption)));
+                    server.execute(() -> iPayloadContext.reply(new SableContraptionResponsePacket(packet.requestId(), contraption)));
                 }
             });
         });

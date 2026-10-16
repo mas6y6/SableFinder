@@ -13,23 +13,23 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.UUID;
 
-public record SearchForContraptionsPacket(UUID requestId, SearchFilters searchFilters) implements RequestPayload<SearchForContraptionsResponsePacket> {
-    public static final CustomPacketPayload.Type<SearchForContraptionsPacket> TYPE =
+public record SearchForContraptionsRequestPacket(UUID requestId, SearchFilters searchFilters) implements RequestPayload<SearchForContraptionsResponsePacket> {
+    public static final CustomPacketPayload.Type<SearchForContraptionsRequestPacket> TYPE =
             new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath(SableFinder.MODID, "search_contraptions"));
 
-    public static final StreamCodec<ByteBuf, SearchForContraptionsPacket> STREAM_CODEC = StreamCodec.of(
-            SearchForContraptionsPacket::write,
-            SearchForContraptionsPacket::read
+    public static final StreamCodec<ByteBuf, SearchForContraptionsRequestPacket> STREAM_CODEC = StreamCodec.of(
+            SearchForContraptionsRequestPacket::write,
+            SearchForContraptionsRequestPacket::read
     );
 
-    private static @NotNull SearchForContraptionsPacket read(@NotNull ByteBuf byteBuf) {
-        return new SearchForContraptionsPacket(
+    private static @NotNull SearchForContraptionsRequestPacket read(@NotNull ByteBuf byteBuf) {
+        return new SearchForContraptionsRequestPacket(
                 UUIDUtil.STREAM_CODEC.decode(byteBuf),
                 SearchFilters.STREAM_CODEC.decode(byteBuf)
         );
     }
 
-    private static void write(@NotNull ByteBuf byteBuf, @NotNull SearchForContraptionsPacket packet) {
+    private static void write(@NotNull ByteBuf byteBuf, @NotNull SearchForContraptionsRequestPacket packet) {
         UUIDUtil.STREAM_CODEC.encode(byteBuf, packet.requestId());
         SearchFilters.STREAM_CODEC.encode(byteBuf, packet.searchFilters());
     }

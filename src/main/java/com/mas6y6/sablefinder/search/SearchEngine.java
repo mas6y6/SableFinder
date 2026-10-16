@@ -1,7 +1,7 @@
 package com.mas6y6.sablefinder.search;
 
 import com.mas6y6.sablefinder.SableFinder;
-import com.mas6y6.sablefinder.networking.SearchForContraptionsPacket;
+import com.mas6y6.sablefinder.networking.SearchForContraptionsRequestPacket;
 import com.mas6y6.sablefinder.networking.SearchForContraptionsResponsePacket;
 import com.mas6y6.sablefinder.sable.SableContraptionData;
 import com.mas6y6.sablefinder.sable.SableUtils;
@@ -32,7 +32,7 @@ public class SearchEngine {
 
     private static final Map<UUID, AtomicBoolean> ACTIVE_SEARCHES = new ConcurrentHashMap<>();
 
-    public static void searchPacket(@NotNull SearchForContraptionsPacket packet, @NotNull IPayloadContext iPayloadContext) {
+    public static void searchPacket(@NotNull SearchForContraptionsRequestPacket packet, @NotNull IPayloadContext iPayloadContext) {
         final SearchFilters filters = packet.searchFilters();
         final MinecraftServer server = SableFinder.getServer();
 

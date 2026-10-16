@@ -12,22 +12,22 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.UUID;
 
-public record GetSableContraptionPacket(UUID requestId, SableContraptionData contraption) implements ResponsePayload {
-    public static final CustomPacketPayload.Type<GetSableContraptionPacket> TYPE =
+public record SableContraptionResponsePacket(UUID requestId, SableContraptionData contraption) implements ResponsePayload {
+    public static final CustomPacketPayload.Type<SableContraptionResponsePacket> TYPE =
             new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath(SableFinder.MODID, "get_contraption"));
 
-    public static final StreamCodec<ByteBuf, GetSableContraptionPacket> STREAM_CODEC = StreamCodec.of(GetSableContraptionPacket::write, GetSableContraptionPacket::read);
+    public static final StreamCodec<ByteBuf, SableContraptionResponsePacket> STREAM_CODEC = StreamCodec.of(SableContraptionResponsePacket::write, SableContraptionResponsePacket::read);
 
-    private static @NotNull GetSableContraptionPacket read(@NotNull ByteBuf byteBuf) {
-        return new GetSableContraptionPacket(
+    private static @NotNull SableContraptionResponsePacket read(@NotNull ByteBuf byteBuf) {
+        return new SableContraptionResponsePacket(
                 UUIDUtil.STREAM_CODEC.decode(byteBuf),
                 SableContraptionData.STREAM_CODEC.decode(byteBuf)
         );
     }
 
-    private static void write(@NotNull ByteBuf byteBuf, @NotNull GetSableContraptionPacket getSableContraptionPacket) {
-        UUIDUtil.STREAM_CODEC.encode(byteBuf, getSableContraptionPacket.requestId());
-        SableContraptionData.STREAM_CODEC.encode(byteBuf, getSableContraptionPacket.contraption());
+    private static void write(@NotNull ByteBuf byteBuf, @NotNull SableContraptionResponsePacket sableContraptionResponsePacket) {
+        UUIDUtil.STREAM_CODEC.encode(byteBuf, sableContraptionResponsePacket.requestId());
+        SableContraptionData.STREAM_CODEC.encode(byteBuf, sableContraptionResponsePacket.contraption());
     }
 
     @Override
@@ -35,7 +35,7 @@ public record GetSableContraptionPacket(UUID requestId, SableContraptionData con
         return TYPE;
     }
 
-    public static void handleClient(@NotNull GetSableContraptionPacket packet, @NotNull IPayloadContext iPayloadContext) {
+    public static void handleClient(@NotNull SableContraptionResponsePacket packet, @NotNull IPayloadContext iPayloadContext) {
         iPayloadContext.enqueueWork(() -> PacketRequests.complete(packet));
     }
 }

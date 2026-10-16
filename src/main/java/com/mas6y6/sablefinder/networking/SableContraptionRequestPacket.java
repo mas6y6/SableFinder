@@ -14,7 +14,7 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.UUID;
 
-public record SableContraptionRequestPacket(UUID requestId, UUID contraptionId) implements RequestPayload<GetSableContraptionPacket> {
+public record SableContraptionRequestPacket(UUID requestId, UUID contraptionId) implements RequestPayload<SableContraptionResponsePacket> {
     public static final CustomPacketPayload.Type<SableContraptionRequestPacket> TYPE =
             new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath(SableFinder.MODID, "request_contraption"));
 
@@ -32,8 +32,8 @@ public record SableContraptionRequestPacket(UUID requestId, UUID contraptionId) 
     }
 
     @Override
-    public CustomPacketPayload.@NotNull Type<GetSableContraptionPacket> responseType() {
-        return GetSableContraptionPacket.TYPE;
+    public CustomPacketPayload.@NotNull Type<SableContraptionResponsePacket> responseType() {
+        return SableContraptionResponsePacket.TYPE;
     }
 
     public static void handleServer(@NotNull SableContraptionRequestPacket packet, @NotNull IPayloadContext iPayloadContext) {
@@ -47,7 +47,7 @@ public record SableContraptionRequestPacket(UUID requestId, UUID contraptionId) 
                     }
 
                     if (contraption != null && server.isRunning()) {
-                        server.execute(() -> iPayloadContext.reply(new GetSableContraptionPacket(packet.requestId(), contraption)));
+                        server.execute(() -> iPayloadContext.reply(new SableContraptionResponsePacket(packet.requestId(), contraption)));
                     }
                 });
             }

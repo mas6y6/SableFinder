@@ -13,17 +13,17 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.UUID;
 
-public record GetSableContraptionListPacket(UUID requestId, CompoundTag sableContraptions) implements ResponsePayload {
-    public static final CustomPacketPayload.Type<GetSableContraptionListPacket> TYPE =
+public record SableContraptionListResponsePacket(UUID requestId, CompoundTag sableContraptions) implements ResponsePayload {
+    public static final CustomPacketPayload.Type<SableContraptionListResponsePacket> TYPE =
             new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath(SableFinder.MODID, "get_contraption_list"));
 
-    public static final StreamCodec<ByteBuf, GetSableContraptionListPacket> STREAM_CODEC =
+    public static final StreamCodec<ByteBuf, SableContraptionListResponsePacket> STREAM_CODEC =
             StreamCodec.composite(
                     UUIDUtil.STREAM_CODEC,
-                    GetSableContraptionListPacket::requestId,
+                    SableContraptionListResponsePacket::requestId,
                     ByteBufCodecs.COMPOUND_TAG,
-                    GetSableContraptionListPacket::sableContraptions,
-                    GetSableContraptionListPacket::new
+                    SableContraptionListResponsePacket::sableContraptions,
+                    SableContraptionListResponsePacket::new
             );
 
     @Override
@@ -31,7 +31,7 @@ public record GetSableContraptionListPacket(UUID requestId, CompoundTag sableCon
         return TYPE;
     }
 
-    public static void handleClient(@NotNull GetSableContraptionListPacket packet, @NotNull IPayloadContext iPayloadContext) {
+    public static void handleClient(@NotNull SableContraptionListResponsePacket packet, @NotNull IPayloadContext iPayloadContext) {
         iPayloadContext.enqueueWork(() -> PacketRequests.complete(packet));
     }
 }
