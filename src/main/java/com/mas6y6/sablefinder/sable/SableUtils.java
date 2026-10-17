@@ -263,6 +263,9 @@ public class SableUtils {
             contraptionTag.putUUID("uuid", contraption.uuid());
             contraptionTag.putString("name", contraption.displayName() != null ? contraption.displayName() : "");
             contraptionTag.putString("dimension", contraption.dimension() != null ? contraption.dimension().location().toString() : "");
+            contraptionTag.putBoolean("is_loaded", contraption.isLoaded());
+            contraptionTag.putBoolean("is_locked", contraption.isLocked());
+
             list.add(contraptionTag);
         });
 

@@ -5,6 +5,7 @@ import com.mas6y6.sablefinder.SableFinderClient;
 import com.mas6y6.sablefinder.config.ConfigClient;
 import com.mas6y6.sablefinder.networking.DeleteContraptionPacket;
 import com.mas6y6.sablefinder.sable.SableContraptionData;
+import com.mas6y6.sablefinder.search.BlockSearchMethod;
 import com.mas6y6.sablefinder.simulated.SimulatedCompat;
 import com.mas6y6.sablefinder.utils.TagFormatter;
 import dev.ryanhcode.sable.companion.math.BoundingBox3d;
@@ -23,7 +24,9 @@ import net.minecraft.client.gui.components.toasts.SystemToast;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
+import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
 import net.neoforged.neoforge.network.PacketDistributor;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -64,9 +67,12 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
     private FlowLayout detailsContent;
     private FlowLayout sidebar;
     private FlowLayout sidebarTop;
+    private FlowLayout sidebarBottom;
     private FlowLayout detailsPanel;
     private ScrollContainer<FlowLayout> listScroll;
     private ButtonComponent refreshButton;
+    private @Nullable ButtonComponent sidebarSortByButton;
+    private @Nullable ButtonComponent sidebarSortDirectionButton;
 
     private boolean leftSidebarCollapsed = false;
     private final boolean rightSidebarCollapsed = false;
@@ -74,6 +80,10 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
     private int selectedContraptionIndex = 0;
     private boolean isSearchResults = false;
     private boolean reloading = false;
+
+    // Kept in memory only so the choice survives closing and reopening the screen, but not a restart.
+    private static SortBy sortBy = SortBy.HAS_NAME;
+    private static SortDirection sortDirection = SortDirection.ASCENDING;
 
     private boolean initialRefreshStarted = false;
 
@@ -172,7 +182,7 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
         clearPreview();
         setDetails(centeredLabel("sablefinder.ui.list.loading_detail"));
 
-        SableContraptionClient.request(uuid).whenComplete((data, error) ->
+        SableContraptionClient.requestContraption(uuid).whenComplete((data, error) ->
                 onMainThread(() -> {
                     // The user may have clicked something else while this was in flight.
                     if (!Objects.equals(selectedUuid, uuid)) {
@@ -239,6 +249,8 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
     private void parseContraptions() {
         contraptions.clear();
 
+        ensureSortByAvailable();
+
         if (sableContraptionsCompoundTag == null) {
             return;
         }
@@ -275,7 +287,96 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
                     + uuid.toString().substring(0, 8)
                     : rawName;
 
-            contraptions.add(new ContraptionEntry(uuid, name, nameEmpty, tag.getString("dimension")));
+            contraptions.add(new ContraptionEntry(uuid, name, nameEmpty, tag.getBoolean("is_loaded"), tag.getBoolean("is_locked"), tag.getString("dimension")));
+        }
+
+        sortContraptions();
+    }
+
+    /**
+     * Orders the list by the active sort. Name is always the tie-breaker so equal keys keep a stable,
+     * predictable order instead of whatever order the server happened to send.
+     */
+    private void sortContraptions() {
+        contraptions.sort((a, b) -> {
+            int result = switch (sortBy) {
+                case LOADED -> Boolean.compare(a.isLoaded(), b.isLoaded());
+                // Ascending here means named-first, matching the "Has Name" label.
+                case HAS_NAME -> Boolean.compare(a.nameEmpty(), b.nameEmpty());
+                case IS_LOCKED -> Boolean.compare(a.isLocked(), b.isLocked());
+            };
+
+            if (result == 0) {
+                result = a.name().compareToIgnoreCase(b.name());
+            }
+
+            if (result == 0) {
+                result = a.uuid().compareTo(b.uuid());
+            }
+
+            return sortDirection == SortDirection.DESCENDING ? -result : result;
+        });
+    }
+
+    private void applySort() {
+        sortContraptions();
+        updateSortButtons();
+        resyncSelectionToSort();
+        rebuildContraptionList();
+        updateContraptionSelection();
+        updateHeader();
+    }
+
+    private void cycleSortBy() {
+        sortBy = sortBy.next(isSimulatedInstalled());
+        applySort();
+    }
+
+    /**
+     * IS_LOCKED is only offered when Simulated is installed. The state is static so it can outlive the
+     * screen, which means it can survive into a session where Simulated is gone; fall back if so.
+     */
+    private void ensureSortByAvailable() {
+        if (!sortBy.isAvailable(isSimulatedInstalled())) {
+            sortBy = SortBy.LOADED;
+        }
+    }
+
+    private static boolean isSimulatedInstalled() {
+        return SimulatedCompat.isSimulatedInstalled();
+    }
+
+    private void toggleSortDirection() {
+        sortDirection = sortDirection.toggled();
+        applySort();
+    }
+
+    /**
+     * Re-points the selection at the index the entry now sits at, so sorting does not appear to jump the
+     * highlight onto a different contraption.
+     */
+    private void resyncSelectionToSort() {
+        if (selectedUuid == null) {
+            return;
+        }
+
+        for (int i = 0; i < contraptions.size(); i++) {
+            if (contraptions.get(i).uuid().equals(selectedUuid)) {
+                selectedContraptionIndex = i;
+                return;
+            }
+        }
+    }
+
+    private void updateSortButtons() {
+        if (sidebarSortByButton != null) {
+            sidebarSortByButton.setMessage(sortByName(sortBy));
+            sidebarSortByButton.tooltip(sortByTooltip(sortBy, sortDirection));
+        }
+
+        if (sidebarSortDirectionButton != null) {
+            sidebarSortDirectionButton.setMessage(sortDirectionTextComponent(sortDirection));
+            sidebarSortDirectionButton.tooltip(Component.translatable(sortDirection.translationKey()));
         }
     }
 
@@ -349,7 +450,7 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
         );
         content.gap(4);
 
-        content.child(buildSidebar());
+        content.child(buildLeftSidebar());
         content.child(buildPreviewPanel());
         content.child(buildDetailsPanel());
 
@@ -440,7 +541,9 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
         return footer;
     }
 
-    private FlowLayout buildSidebar() {
+    private FlowLayout buildLeftSidebar() {
+        // top
+
         sidebar = Containers.verticalFlow(
                 leftSidebarCollapsed ? Sizing.fixed(COLLAPSED_SIDEBAR_WIDTH) : Sizing.fill(25),
                 Sizing.fill(100)
@@ -488,6 +591,8 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
 
         rebuildContraptionList();
 
+        // middle
+
         listScroll = Containers.verticalScroll(
                 Sizing.fill(100),
                 Sizing.expand(),
@@ -496,6 +601,38 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
         listScroll
                 .scrollbar(ScrollContainer.Scrollbar.vanillaFlat())
                 .scrollbarThiccness(4);
+
+        // bottom
+
+        sidebarBottom = Containers.horizontalFlow(
+                Sizing.fill(100),
+                Sizing.content()
+        );
+        sidebarBottom.margins(Insets.top(3));
+
+        ButtonComponent sidebarSortBy = Components.button(
+                sortByName(sortBy),
+                button -> cycleSortBy()
+        );
+        sidebarSortBy.tooltip(sortByTooltip(sortBy, sortDirection));
+        sidebarSortBy.horizontalSizing(Sizing.expand());
+        sidebarSortBy.verticalSizing(Sizing.fill(8));
+
+        ButtonComponent sidebarSortDirection = Components.button(
+                sortDirectionTextComponent(sortDirection),
+                button -> toggleSortDirection()
+        );
+        sidebarSortDirection.tooltip(Component.translatable(sortDirection.translationKey()));
+        sidebarSortDirection.horizontalSizing(Sizing.fixed(14));
+        sidebarSortDirection.verticalSizing(Sizing.fill(8));
+
+        sidebarSortByButton = sidebarSortBy;
+        sidebarSortDirectionButton = sidebarSortDirection;
+
+        sidebarBottom.child(sidebarSortBy);
+        sidebarBottom.child(sidebarSortDirection);
+
+        updateSortButtons();
 
         updateLeftSidebar();
 
@@ -532,6 +669,7 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
         } else {
             sidebar.child(sidebarTop);
             sidebar.child(listScroll);
+            sidebar.child(sidebarBottom);
         }
     }
 
@@ -640,13 +778,15 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
         item.padding(Insets.of(3));
         item.gap(1);
 
+        boolean b = entry.dimension() != null && !entry.dimension().isEmpty();
         item.tooltip(Component.translatable(
                 "sablefinder.ui.tooltip.contraption",
                 Component.literal(entry.name()),
                 Component.literal(entry.uuid().toString()),
-                entry.dimension() != null && !entry.dimension().isEmpty()
+                b
                         ? Component.literal(entry.dimension())
-                        : Component.translatable("sablefinder.ui.list.unknown_dimension")
+                        : Component.translatable("sablefinder.ui.list.unknown_dimension"),
+                buildStatusTooltip(entry)
         ));
 
         String displayName = entry.name().length() > 19
@@ -662,7 +802,7 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
                 "§8" + entry.uuid().toString().substring(0, 15) + "..."
         )));
 
-        if (entry.dimension() != null && !entry.dimension().isEmpty()) {
+        if (b) {
             item.child(Components.label(Component.literal("§8" + entry.dimension())));
         }
 
@@ -677,7 +817,7 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
         });
 
         ContraptionItem listItem = new ContraptionItem(
-                entry.uuid(), displayName, entry.nameEmpty(), item, nameLabel
+                entry.uuid(), displayName, entry.nameEmpty(), entry.isLoaded(), item, nameLabel
         );
 
         listItems.add(listItem);
@@ -1234,12 +1374,59 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
         return null;
     }
 
-    public record ContraptionEntry(UUID uuid, String name, boolean nameEmpty, String dimension) {}
+    private static @NotNull Component sortByName(@NotNull SortBy method) {
+        return Component.translatable(method.translationKey());
+    }
+
+    /**
+     * Appends the loaded/locked state to a list-row tooltip. Loaded is highlighted green because it is the
+     * actionable difference; locked is left in the default colour. Each entry carries its own leading
+     * newline, so an unloaded, unlocked contraption leaves the tooltip untouched rather than trailing a
+     * blank line.
+     */
+    private static @NotNull Component buildStatusTooltip(@NotNull ContraptionEntry entry) {
+        if (!entry.isLoaded() && !entry.isLocked()) {
+            return Component.empty();
+        }
+
+        final MutableComponent status = Component.empty();
+
+        if (entry.isLoaded()) {
+            status.append("\n").append(
+                    Component.translatable("sablefinder.ui.tooltip.loaded").withStyle(ChatFormatting.GREEN)
+            );
+        }
+
+        if (entry.isLocked()) {
+            status.append("\n").append(Component.translatable("sablefinder.ui.tooltip.locked"));
+        }
+
+        return status;
+    }
+
+
+    private static @NotNull Component sortByTooltip(@NotNull SortBy method, @NotNull SortDirection direction) {
+        return Component.translatable(
+                "sablefinder.ui.sortby.tooltip",
+                Component.translatable(method.translationKey()),
+                Component.translatable(direction.translationKey())
+        );
+    }
+
+    private static @NotNull Component sortDirectionTextComponent(@NotNull SortDirection method) {
+        return Component.literal(switch (method) {
+            case ASCENDING -> "▲";
+            case DESCENDING -> "▼";
+        });
+    }
+
+    public record ContraptionEntry(UUID uuid, String name, boolean nameEmpty, boolean isLoaded, boolean isLocked, String dimension) {}
 
     public record ContraptionItem(
             UUID uuid,
             String displayName,
             boolean nameEmpty,
+            boolean isLoaded,
             FlowLayout root,
             LabelComponent nameLabel
     ) {}

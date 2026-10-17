@@ -34,6 +34,7 @@
   "sablefinder.ui.simulated": "§6Simulated",
   "sablefinder.ui.button.lock_contraption": "Lock Contraption",
   "sablefinder.ui.button.unlock_contraption": "Unlock Contraption",
+  "sablefinder.ui.coming_soon": "Coming Soon!",
 
   "sablefinder.ui.button.collapse": "<",
   "sablefinder.ui.button.expand": ">",
@@ -55,7 +56,9 @@
   "sablefinder.ui.tooltip.collapse_list": "Collapse List",
   "sablefinder.ui.tooltip.expand_list": "Expand List",
   "sablefinder.ui.tooltip.clear_filters": "Reset's search results",
-  "sablefinder.ui.tooltip.contraption": "%s\n§7UUID: %s\n§7Dimension: %s",
+  "sablefinder.ui.tooltip.contraption": "%s\n§7UUID: %s\n§7Dimension: %s%s",
+  "sablefinder.ui.tooltip.loaded": "Loaded",
+  "sablefinder.ui.tooltip.locked": "Locked",
   "sablefinder.ui.tooltip.refreshButton": "Gets the latest information from the server",
 
   "sablefinder.ui.list.search": "§7Search...",
@@ -161,6 +164,14 @@
   "sablefinder.ui.view.hint.pan": "§8R-Drag: Pan",
   "sablefinder.ui.view.hint.zoom": "§8Scroll: Zoom",
 
+  "sablefinder.ui.sortby.loaded": "Is loaded",
+  "sablefinder.ui.sortby.has_name": "Has Name",
+  "sablefinder.ui.sortby.is_locked": "Is locked",
+
+  "sablefinder.ui.sortdirection.ascending": "Ascending",
+  "sablefinder.ui.sortdirection.descending": "Descending",
+  "sablefinder.ui.sortdirection.tooltip": "Flip the sort order",
+
   "sablefinder.message.not_player": "You must be a player to use this command.",
   "sablefinder.message.no_permission": "You do not have permission to use this command.",
   "sablefinder.message.client_mod_missing": "The client does not have the SableFinder mod installed.",
@@ -186,5 +197,5 @@
 
   "key.sableFinder.next_contraption": "Next Contraption",
   "key.sableFinder.previous_contraption": "Previous Contraption",
-  "sablefinder.ui.coming_soon": "Coming Soon!"
+  "sablefinder.ui.sortby.tooltip": "Sorting by %s (%s)"
 }

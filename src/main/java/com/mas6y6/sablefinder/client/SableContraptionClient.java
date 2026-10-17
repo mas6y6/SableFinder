@@ -18,8 +18,6 @@ import java.util.concurrent.CompletableFuture;
 
 
 public final class SableContraptionClient {
-
-
     private static final String VERSION_MISMATCH_MESSAGE =
             "Refusing to contact the server: client and server SableFinder versions differ";
 
@@ -32,7 +30,7 @@ public final class SableContraptionClient {
         return future;
     }
 
-    public static @NotNull CompletableFuture<SableContraptionData> request(UUID contraptionId) {
+    public static @NotNull CompletableFuture<SableContraptionData> requestContraption(UUID contraptionId) {
         if (!ClientPayloadHandler.allowOperation()) {
             return blocked();
         }
