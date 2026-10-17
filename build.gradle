@@ -301,6 +301,12 @@ dependencies {
     runtimeOnly offroadJar
     aeronauticsBundle("maven.modrinth:create-aeronautics:${create_aeronautics_version}+mc${minecraft_version}") { transitive = false }
 
+    compileOnly "maven.modrinth:gF3BGWvG:yWmXD7GW" // OPAC
+    runtimeOnly "maven.modrinth:gF3BGWvG:yWmXD7GW"
+
+    compileOnly "maven.modrinth:CwZ8q37q:GBQG9g6R" // AeroClaims
+    runtimeOnly "maven.modrinth:CwZ8q37q:GBQG9g6R"
+
     implementation "io.wispforest:owo-lib-neoforge:${project.owo_version}"
     interfaceInjectionData "io.wispforest:owo-lib-neoforge:${project.owo_version}"
     annotationProcessor implementation("io.wispforest:owo-lib-neoforge:${project.owo_version}")
