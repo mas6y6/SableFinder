@@ -8,8 +8,6 @@ import org.jetbrains.annotations.NotNull;
 import java.util.ArrayList;
 
 public record SearchFilters(
-        boolean saveServer,
-
         boolean useNameSearch,
         String nameSearch,
 
@@ -29,8 +27,6 @@ public record SearchFilters(
     public static final StreamCodec<ByteBuf, SearchFilters> STREAM_CODEC =
             StreamCodec.of(
                     (buf, filters) -> {
-                        ByteBufCodecs.BOOL.encode(buf, filters.saveServer());
-
                         ByteBufCodecs.BOOL.encode(buf, filters.useNameSearch());
                         ByteBufCodecs.STRING_UTF8.encode(buf, filters.nameSearch());
 
@@ -49,8 +45,6 @@ public record SearchFilters(
                         ).encode(buf, filters.blockFilters());
                     },
                     buf -> new SearchFilters(
-                            ByteBufCodecs.BOOL.decode(buf),
-
                             ByteBufCodecs.BOOL.decode(buf),
                             ByteBufCodecs.STRING_UTF8.decode(buf),
 
@@ -72,7 +66,6 @@ public record SearchFilters(
 
     private SearchFilters() {
         this(
-                false,
                 false, "",
                 false, "",
                 false, BlockSearchMethod.LESS_THEN_OR_EQUAL, 0, 0,
@@ -80,19 +73,8 @@ public record SearchFilters(
         );
     }
 
-    public @NotNull SearchFilters withSaveServer(boolean saveServer) {
-        return new SearchFilters(
-                saveServer,
-                useNameSearch, nameSearch,
-                useUUIDSearch, uuidSearch,
-                useBlockSize, blockSearchMethod, blockSize, blockSizeMax,
-                useBlockSearch, blockFilters
-        );
-    }
-
     public @NotNull SearchFilters withUseNameSearch(boolean useNameSearch) {
         return new SearchFilters(
-                saveServer,
                 useNameSearch, nameSearch,
                 useUUIDSearch, uuidSearch,
                 useBlockSize, blockSearchMethod, blockSize, blockSizeMax,
@@ -102,7 +84,6 @@ public record SearchFilters(
 
     public @NotNull SearchFilters withNameSearch(String nameSearch) {
         return new SearchFilters(
-                saveServer,
                 useNameSearch, nameSearch,
                 useUUIDSearch, uuidSearch,
                 useBlockSize, blockSearchMethod, blockSize, blockSizeMax,
@@ -112,7 +93,6 @@ public record SearchFilters(
 
     public @NotNull SearchFilters withUseUUIDSearch(boolean useUUIDSearch) {
         return new SearchFilters(
-                saveServer,
                 useNameSearch, nameSearch,
                 useUUIDSearch, uuidSearch,
                 useBlockSize, blockSearchMethod, blockSize, blockSizeMax,
@@ -122,7 +102,6 @@ public record SearchFilters(
 
     public @NotNull SearchFilters withUuidSearch(String uuidSearch) {
         return new SearchFilters(
-                saveServer,
                 useNameSearch, nameSearch,
                 useUUIDSearch, uuidSearch,
                 useBlockSize, blockSearchMethod, blockSize, blockSizeMax,
@@ -132,7 +111,6 @@ public record SearchFilters(
 
     public @NotNull SearchFilters withUseBlockSize(boolean useBlockSize) {
         return new SearchFilters(
-                saveServer,
                 useNameSearch, nameSearch,
                 useUUIDSearch, uuidSearch,
                 useBlockSize, blockSearchMethod, blockSize, blockSizeMax,
@@ -142,7 +120,6 @@ public record SearchFilters(
 
     public @NotNull SearchFilters withBlockSearchMethod(BlockSearchMethod blockSearchMethod) {
         return new SearchFilters(
-                saveServer,
                 useNameSearch, nameSearch,
                 useUUIDSearch, uuidSearch,
                 useBlockSize, blockSearchMethod, blockSize, blockSizeMax,
@@ -152,7 +129,6 @@ public record SearchFilters(
 
     public @NotNull SearchFilters withBlockSize(int blockSize) {
         return new SearchFilters(
-                saveServer,
                 useNameSearch, nameSearch,
                 useUUIDSearch, uuidSearch,
                 useBlockSize, blockSearchMethod, blockSize, blockSizeMax,
@@ -162,7 +138,6 @@ public record SearchFilters(
 
     public @NotNull SearchFilters withBlockSizeMax(int blockSizeMax) {
         return new SearchFilters(
-                saveServer,
                 useNameSearch, nameSearch,
                 useUUIDSearch, uuidSearch,
                 useBlockSize, blockSearchMethod, blockSize, blockSizeMax,
@@ -172,7 +147,6 @@ public record SearchFilters(
 
     public @NotNull SearchFilters withUseBlockSearch(boolean useBlockSearch) {
         return new SearchFilters(
-                saveServer,
                 useNameSearch, nameSearch,
                 useUUIDSearch, uuidSearch,
                 useBlockSize, blockSearchMethod, blockSize, blockSizeMax,
@@ -182,7 +156,6 @@ public record SearchFilters(
 
     public @NotNull SearchFilters withBlockFilters(ArrayList<BlockFilter> blockFilters) {
         return new SearchFilters(
-                saveServer,
                 useNameSearch, nameSearch,
                 useUUIDSearch, uuidSearch,
                 useBlockSize, blockSearchMethod, blockSize, blockSizeMax,

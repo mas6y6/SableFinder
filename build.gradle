@@ -303,6 +303,7 @@ dependencies {
 
     implementation "io.wispforest:owo-lib-neoforge:${project.owo_version}"
     interfaceInjectionData "io.wispforest:owo-lib-neoforge:${project.owo_version}"
+    annotationProcessor implementation("io.wispforest:owo-lib-neoforge:${project.owo_version}")
 }
 // This block of code expands all declared replace properties in the specified resource targets.
 // A missing property will result in an error. Properties are expanded using ${} Groovy notation.

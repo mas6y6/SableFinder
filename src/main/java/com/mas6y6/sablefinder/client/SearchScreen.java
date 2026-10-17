@@ -2,6 +2,7 @@ package com.mas6y6.sablefinder.client;
 
 import com.mas6y6.sablefinder.search.BlockFilter;
 import com.mas6y6.sablefinder.search.BlockSearchMethod;
+import com.mas6y6.sablefinder.search.SearchEngine;
 import com.mas6y6.sablefinder.search.SearchFilters;
 import io.wispforest.owo.ui.base.BaseOwoScreen;
 import io.wispforest.owo.ui.component.BlockComponent;
@@ -42,7 +43,6 @@ public class SearchScreen extends BaseOwoScreen<FlowLayout> {
     private static SearchConfig savedConfig;
 
     private record SearchConfig(
-            boolean saveServer,
             boolean useName,
             String name,
             boolean useUuid,
@@ -58,9 +58,6 @@ public class SearchScreen extends BaseOwoScreen<FlowLayout> {
     private final SableFinderScreen parent;
 
     // --- textual filters ---------------------------------------------------
-
-    private final CheckboxComponent saveServerCheckbox =
-            Components.checkbox(Component.translatable("sablefinder.ui.search.save_server"));
 
     private final CheckboxComponent useNameCheckbox =
             Components.checkbox(Component.translatable("sablefinder.ui.search.name"));
@@ -119,9 +116,6 @@ public class SearchScreen extends BaseOwoScreen<FlowLayout> {
     }
 
     private void configureComponents() {
-        saveServerCheckbox.checked(true);
-        saveServerCheckbox.tooltip(Component.translatable("sablefinder.ui.search.save_server.tooltip"));
-
         nameBox.setHint(Component.translatable("sablefinder.ui.search.name.hint"));
         nameBox.setMaxLength(256);
 
@@ -137,7 +131,6 @@ public class SearchScreen extends BaseOwoScreen<FlowLayout> {
         addBlockButton.horizontalSizing(Sizing.fixed(18));
         addBlockButton.verticalSizing(Sizing.fixed(18));
 
-        saveServerCheckbox.onChanged(checked -> onFilterToggled());
         useNameCheckbox.onChanged(checked -> onFilterToggled());
         nameBox.onChanged().subscribe(value -> onFilterToggled());
         useUuidCheckbox.onChanged(checked -> onFilterToggled());
@@ -151,7 +144,6 @@ public class SearchScreen extends BaseOwoScreen<FlowLayout> {
     private void loadConfig() {
         if (savedConfig == null) return;
 
-        saveServerCheckbox.checked(savedConfig.saveServer());
         useNameCheckbox.checked(savedConfig.useName());
         nameBox.text(savedConfig.name());
         useUuidCheckbox.checked(savedConfig.useUuid());
@@ -167,7 +159,6 @@ public class SearchScreen extends BaseOwoScreen<FlowLayout> {
 
     private void saveConfig() {
         savedConfig = new SearchConfig(
-                saveServerCheckbox.selected(),
                 useNameCheckbox.selected(),
                 nameBox.getValue(),
                 useUuidCheckbox.selected(),
@@ -253,10 +244,6 @@ public class SearchScreen extends BaseOwoScreen<FlowLayout> {
         final FlowLayout filters = Containers.verticalFlow(Sizing.fill(100), Sizing.content());
         filters.gap(5);
         filters.padding(Insets.right(4));
-
-        final FlowLayout serverCard = card();
-        serverCard.child(saveServerCheckbox);
-        filters.child(serverCard);
 
         final FlowLayout nameCard = card();
         nameCard.child(useNameCheckbox);
@@ -611,6 +598,10 @@ public class SearchScreen extends BaseOwoScreen<FlowLayout> {
     // --- actions -----------------------------------------------------------
 
     private void onSearchButtonPressed() {
+        // Nothing will be sent, so don't spin the UI waiting for a response that never arrives.
+        if (!ClientPayloadHandler.allowOperation()) {
+            return;
+        }
         if (searching) {
             cancelSearch();
         } else {
@@ -653,6 +644,14 @@ public class SearchScreen extends BaseOwoScreen<FlowLayout> {
                         return;
                     }
 
+                    // The server reports scan/flush failures through the result tag so they
+                    // reach the player instead of the future dying on the scan thread.
+                    final String searchError = tag.getString(SearchEngine.ERROR_KEY);
+                    if (!searchError.isEmpty()) {
+                        statusLabel.text(Component.literal(searchError));
+                        return;
+                    }
+
                     parent.applySearchResults(tag);
                     onClose();
                 })
@@ -677,8 +676,6 @@ public class SearchScreen extends BaseOwoScreen<FlowLayout> {
     }
 
     private void resetFilters() {
-        saveServerCheckbox.checked(true);
-
         useNameCheckbox.checked(false);
         nameBox.text("");
 
@@ -729,8 +726,6 @@ public class SearchScreen extends BaseOwoScreen<FlowLayout> {
 
     private @NotNull SearchFilters buildFilters() {
         return new SearchFilters(
-                saveServerCheckbox.selected(),
-
                 useNameCheckbox.selected() && !nameBox.getValue().isBlank(),
                 nameBox.getValue(),
 

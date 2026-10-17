@@ -10,11 +10,12 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.UUID;
 
 
-public record CheckExistencePacket(UUID requestId, boolean isServerHasMod, boolean isClientHasMod, String serverVersion, String clientVersion)
+public record CheckExistencePacket(UUID requestId, boolean isServerHasMod, boolean isClientHasMod, @Nullable String serverVersion, @Nullable String clientVersion)
         implements RequestPayload<CheckExistencePacket>, ResponsePayload {
     public static final CustomPacketPayload.Type<CheckExistencePacket> TYPE =
             new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath(SableFinder.MODID, "check_existence"));

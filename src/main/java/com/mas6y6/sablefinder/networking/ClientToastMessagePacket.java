@@ -13,17 +13,17 @@ import net.minecraft.resources.ResourceLocation;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 import org.jetbrains.annotations.NotNull;
 
-public record ClientMessagePacket(Component title,Component message) implements CustomPacketPayload {
-    public static final CustomPacketPayload.Type<ClientMessagePacket> TYPE =
+public record ClientToastMessagePacket(Component title, Component message) implements CustomPacketPayload {
+    public static final CustomPacketPayload.Type<ClientToastMessagePacket> TYPE =
             new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath(SableFinder.MODID, "message_client"));
 
-    public static final StreamCodec<RegistryFriendlyByteBuf, ClientMessagePacket> STREAM_CODEC =
+    public static final StreamCodec<RegistryFriendlyByteBuf, ClientToastMessagePacket> STREAM_CODEC =
             StreamCodec.composite(
                     ComponentSerialization.STREAM_CODEC,
-                    ClientMessagePacket::title,
+                    ClientToastMessagePacket::title,
                     ComponentSerialization.STREAM_CODEC,
-                    ClientMessagePacket::message,
-                    ClientMessagePacket::new
+                    ClientToastMessagePacket::message,
+                    ClientToastMessagePacket::new
             );
 
     @Override
@@ -31,7 +31,7 @@ public record ClientMessagePacket(Component title,Component message) implements 
         return TYPE;
     }
 
-    public static void handleClient(@NotNull ClientMessagePacket packet, @NotNull IPayloadContext iPayloadContext) {
+    public static void handleClient(@NotNull ClientToastMessagePacket packet, @NotNull IPayloadContext iPayloadContext) {
         iPayloadContext.enqueueWork(() -> {
             SystemToast.addOrUpdate(Minecraft.getInstance().getToasts(), SableFinderClient.SYSTEM_TOAST_ID, packet.title(), packet.message());
         });

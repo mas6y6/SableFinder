@@ -4,13 +4,23 @@
   "item.sablefinder.example_item": "Example Item",
 
   "sablefinder.configuration.title": "sableFinder Configs",
-  "sablefinder.configuration.section.sablefinder.common.toml": "sableFinder Configs",
-  "sablefinder.configuration.section.sablefinder.common.toml.title": "sableFinder Configs",
-  "sablefinder.configuration.items": "Item List",
-  "sablefinder.configuration.logDirtBlock": "Log Dirt Block",
+  "sablefinder.configuration.section.sablefinder.client.toml": "Client Config",
+  "sablefinder.configuration.section.sablefinder.client.toml.title": "Client Config",
+  "sablefinder.configuration.section.sablefinder.server.toml": "Server Config",
+  "sablefinder.configuration.section.sablefinder.server.toml.title": "Server Config",
+
+  "sablefinder.configuration.screen": "Browser",
+  "sablefinder.configuration.screen.button": "Browser Settings",
+  "sablefinder.configuration.screen.tooltip": "Settings for the contraption browser screen.",
+  "sablefinder.configuration.suggestions": "Suggestions",
+  "sablefinder.configuration.suggestions.button": "Suggestions Settings",
+  "sablefinder.configuration.suggestions.tooltip": "Settings for the /sablefinder view_uuid argument suggestions.",
+  "sablefinder.configuration.subLevelSave": "Sub-level Saving",
+  "sablefinder.configuration.subLevelSave.button": "Sub-level Saving Settings",
+  "sablefinder.configuration.subLevelSave.tooltip": "Settings for how often stored sub-level data is flushed to disk.",
+
   "sablefinder.configuration.refresh_on_open": "Refresh contraption list on open",
-  "sablefinder.configuration.magicNumberIntroduction": "Magic Number Text",
-  "sablefinder.configuration.magicNumber": "Magic Number",
+  "sablefinder.configuration.refresh_on_open.tooltip": "Ask the server for a fresh contraption list every time the browser is opened.\nWhen false the browser reopens instantly from the list cached last time, which may be out of date.",
   "gui.sablefinder": "SableFinder",
   "key.sableFinder.refresh_key": "Refresh",
   "key.categories.sablefinder": "SableFinder",
@@ -24,6 +34,7 @@
   "sablefinder.ui.simulated": "§6Simulated",
   "sablefinder.ui.button.lock_contraption": "Lock Contraption",
   "sablefinder.ui.button.unlock_contraption": "Unlock Contraption",
+  "sablefinder.ui.coming_soon": "Coming Soon!",
 
   "sablefinder.ui.button.collapse": "<",
   "sablefinder.ui.button.expand": ">",
@@ -45,7 +56,9 @@
   "sablefinder.ui.tooltip.collapse_list": "Collapse List",
   "sablefinder.ui.tooltip.expand_list": "Expand List",
   "sablefinder.ui.tooltip.clear_filters": "Reset's search results",
-  "sablefinder.ui.tooltip.contraption": "%s\n§7UUID: %s\n§7Dimension: %s",
+  "sablefinder.ui.tooltip.contraption": "%s\n§7UUID: %s\n§7Dimension: %s%s",
+  "sablefinder.ui.tooltip.loaded": "Loaded",
+  "sablefinder.ui.tooltip.locked": "Locked",
   "sablefinder.ui.tooltip.refreshButton": "Gets the latest information from the server",
 
   "sablefinder.ui.list.search": "§7Search...",
@@ -108,8 +121,6 @@
   "sablefinder.ui.search.cancel": "Cancel",
   "sablefinder.ui.search.cancelled": "§7Search cancelled.",
   "sablefinder.ui.search.title": "§6Search Contraptions",
-  "sablefinder.ui.search.save_server": "Save server before searching",
-  "sablefinder.ui.search.save_server.tooltip": "Flushes sub-level data first so the freshest contraptions are found. Slower.",
   "sablefinder.ui.search.name": "Match name",
   "sablefinder.ui.search.name.hint": "Glob pattern, e.g. My*Ship",
   "sablefinder.ui.search.uuid": "Match UUID",
@@ -153,6 +164,14 @@
   "sablefinder.ui.view.hint.pan": "§8R-Drag: Pan",
   "sablefinder.ui.view.hint.zoom": "§8Scroll: Zoom",
 
+  "sablefinder.ui.sortby.loaded": "Is loaded",
+  "sablefinder.ui.sortby.has_name": "Has Name",
+  "sablefinder.ui.sortby.is_locked": "Is locked",
+
+  "sablefinder.ui.sortdirection.ascending": "Ascending",
+  "sablefinder.ui.sortdirection.descending": "Descending",
+  "sablefinder.ui.sortdirection.tooltip": "Flip the sort order",
+
   "sablefinder.message.not_player": "You must be a player to use this command.",
   "sablefinder.message.no_permission": "You do not have permission to use this command.",
   "sablefinder.message.client_mod_missing": "The client does not have the SableFinder mod installed.",
@@ -167,7 +186,16 @@
   "sablefinder.message.delete.failed_title": "Failed to delete contraption",
   "sablefinder.message.delete.failed": "An error occurred while deleting the contraption. Check server logs.",
 
+  "sablefinder.message.save_test.usage": "Usage: /sablefinder save_test confirm <1-%s>. Runs the sub-level flush off-thread against live world data - use a throwaway world.",
+  "sablefinder.message.save_test.started": "Running %s off-thread sub-level save iteration(s); the server will keep ticking. Watch the log.",
+  "sablefinder.message.save_test.clean": "Off-thread save test finished with no errors - %s",
+  "sablefinder.message.save_test.unstable": "Off-thread save test hit errors - %s",
+  "sablefinder.message.save_test.crashed": "The off-thread save test failed to run: %s",
+
+  "sablefinder.configuration.suggestion_cache_ttl_ms": "Suggestion cache TTL (ms)",
+  "sablefinder.configuration.suggestion_cache_ttl_ms.tooltip": "How long the cached list of contraption UUIDs stays fresh.\nOnly feeds /sablefinder view_uuid suggestions.\nEvery refresh scans every stored sub-level on disk.",
+
   "key.sableFinder.next_contraption": "Next Contraption",
   "key.sableFinder.previous_contraption": "Previous Contraption",
-  "sablefinder.ui.coming_soon": "Coming Soon!"
+  "sablefinder.ui.sortby.tooltip": "Sorting by %s (%s)"
 }

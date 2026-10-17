@@ -22,9 +22,9 @@ public class Networking {
         );
 
         payloadregister.playToClient(
-                GetSableContraptionPacket.TYPE,
-                GetSableContraptionPacket.STREAM_CODEC,
-                GetSableContraptionPacket::handleClient
+                SableContraptionResponsePacket.TYPE,
+                SableContraptionResponsePacket.STREAM_CODEC,
+                SableContraptionResponsePacket::handleClient
         );
 
         payloadregister.playToServer(
@@ -34,9 +34,9 @@ public class Networking {
         );
 
         payloadregister.playToClient(
-                GetSableContraptionListPacket.TYPE,
-                GetSableContraptionListPacket.STREAM_CODEC,
-                GetSableContraptionListPacket::handleClient
+                SableContraptionListResponsePacket.TYPE,
+                SableContraptionListResponsePacket.STREAM_CODEC,
+                SableContraptionListResponsePacket::handleClient
         );
 
         payloadregister.playToServer(
@@ -52,15 +52,15 @@ public class Networking {
         );
 
         payloadregister.playToClient(
-                ClientMessagePacket.TYPE,
-                ClientMessagePacket.STREAM_CODEC,
-                ClientMessagePacket::handleClient
+                ClientToastMessagePacket.TYPE,
+                ClientToastMessagePacket.STREAM_CODEC,
+                ClientToastMessagePacket::handleClient
         );
 
         payloadregister.playToServer(
-                SearchForContraptionsPacket.TYPE,
-                SearchForContraptionsPacket.STREAM_CODEC,
-                SearchForContraptionsPacket::handleServer
+                SearchForContraptionsRequestPacket.TYPE,
+                SearchForContraptionsRequestPacket.STREAM_CODEC,
+                SearchForContraptionsRequestPacket::handleServer
         );
 
         payloadregister.playToClient(

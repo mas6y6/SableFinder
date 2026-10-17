@@ -1,11 +1,11 @@
 package com.mas6y6.sablefinder.client;
 
-import com.mas6y6.sablefinder.networking.GetSableContraptionListPacket;
-import com.mas6y6.sablefinder.networking.GetSableContraptionPacket;
+import com.mas6y6.sablefinder.networking.SableContraptionListResponsePacket;
+import com.mas6y6.sablefinder.networking.SableContraptionResponsePacket;
 import com.mas6y6.sablefinder.networking.PacketRequests;
 import com.mas6y6.sablefinder.networking.SableContraptionListRequestPacket;
 import com.mas6y6.sablefinder.networking.SableContraptionRequestPacket;
-import com.mas6y6.sablefinder.networking.SearchForContraptionsPacket;
+import com.mas6y6.sablefinder.networking.SearchForContraptionsRequestPacket;
 import com.mas6y6.sablefinder.networking.SearchForContraptionsResponsePacket;
 import com.mas6y6.sablefinder.networking.SetContraptionLockPacket;
 import com.mas6y6.sablefinder.sable.SableContraptionData;
@@ -18,22 +18,43 @@ import java.util.concurrent.CompletableFuture;
 
 
 public final class SableContraptionClient {
+    private static final String VERSION_MISMATCH_MESSAGE =
+            "Refusing to contact the server: client and server SableFinder versions differ";
+
     private SableContraptionClient() {
     }
 
-    public static @NotNull CompletableFuture<SableContraptionData> request(UUID contraptionId) {
+    private static @NotNull <T> CompletableFuture<T> blocked() {
+        final CompletableFuture<T> future = new CompletableFuture<>();
+        future.completeExceptionally(new IllegalStateException(VERSION_MISMATCH_MESSAGE));
+        return future;
+    }
+
+    public static @NotNull CompletableFuture<SableContraptionData> requestContraption(UUID contraptionId) {
+        if (!ClientPayloadHandler.allowOperation()) {
+            return blocked();
+        }
+
         return PacketRequests.sendToServer(new SableContraptionRequestPacket(PacketRequests.newId(), contraptionId))
-                .thenApply(GetSableContraptionPacket::contraption);
+                .thenApply(SableContraptionResponsePacket::contraption);
     }
 
     public static @NotNull CompletableFuture<CompoundTag> requestContraptionList() {
+        if (!ClientPayloadHandler.allowOperation()) {
+            return blocked();
+        }
+
         return PacketRequests.sendToServer(new SableContraptionListRequestPacket(PacketRequests.newId()))
-                .thenApply(GetSableContraptionListPacket::sableContraptions);
+                .thenApply(SableContraptionListResponsePacket::sableContraptions);
     }
 
     public static @NotNull CompletableFuture<SableContraptionData> setLocked(UUID contraptionId, boolean locked) {
+        if (!ClientPayloadHandler.allowOperation()) {
+            return blocked();
+        }
+
         return PacketRequests.sendToServer(new SetContraptionLockPacket(PacketRequests.newId(), contraptionId, locked))
-                .thenApply(GetSableContraptionPacket::contraption);
+                .thenApply(SableContraptionResponsePacket::contraption);
     }
 
     /**
@@ -43,9 +64,10 @@ public final class SableContraptionClient {
     public static @NotNull SearchRequest search(SearchFilters filters) {
         final UUID requestId = PacketRequests.newId();
 
-        final CompletableFuture<CompoundTag> future = PacketRequests
-                .sendToServer(new SearchForContraptionsPacket(requestId, filters))
-                .thenApply(SearchForContraptionsResponsePacket::contraptions);
+        final CompletableFuture<CompoundTag> future = ClientPayloadHandler.allowOperation()
+                ? PacketRequests.sendToServer(new SearchForContraptionsRequestPacket(requestId, filters))
+                        .thenApply(SearchForContraptionsResponsePacket::contraptions)
+                : blocked();
 
         return new SearchRequest(requestId, future);
     }

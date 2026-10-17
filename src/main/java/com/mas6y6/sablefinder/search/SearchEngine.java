@@ -1,12 +1,14 @@
 package com.mas6y6.sablefinder.search;
 
 import com.mas6y6.sablefinder.SableFinder;
-import com.mas6y6.sablefinder.networking.SearchForContraptionsPacket;
+import com.mas6y6.sablefinder.networking.SearchForContraptionsRequestPacket;
 import com.mas6y6.sablefinder.networking.SearchForContraptionsResponsePacket;
 import com.mas6y6.sablefinder.sable.SableContraptionData;
 import com.mas6y6.sablefinder.sable.SableUtils;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
@@ -19,6 +21,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -29,7 +32,7 @@ public class SearchEngine {
 
     private static final Map<UUID, AtomicBoolean> ACTIVE_SEARCHES = new ConcurrentHashMap<>();
 
-    public static void searchPacket(@NotNull SearchForContraptionsPacket packet, @NotNull IPayloadContext iPayloadContext) {
+    public static void searchPacket(@NotNull SearchForContraptionsRequestPacket packet, @NotNull IPayloadContext iPayloadContext) {
         final SearchFilters filters = packet.searchFilters();
         final MinecraftServer server = SableFinder.getServer();
 
@@ -41,7 +44,22 @@ public class SearchEngine {
         final AtomicBoolean cancelled = new AtomicBoolean(false);
         ACTIVE_SEARCHES.put(packet.requestId(), cancelled);
 
-        SableUtils.getAllContraptionsAsync(server, filters.saveServer(), cancelled)
+        final CompletableFuture<List<SableContraptionData>> scan;
+        try {
+            scan = SableUtils.getAllContraptionsAsync(server, cancelled);
+        } catch (Exception exception) {
+            ACTIVE_SEARCHES.remove(packet.requestId());
+            SableFinder.LOGGER.error("Failed to start a contraption search", exception);
+
+            iPayloadContext.reply(new SearchForContraptionsResponsePacket(
+                    packet.requestId(),
+                    errorTag(errorReason(exception))
+            ));
+
+            return;
+        }
+
+        scan
                 .whenComplete((contraptions, error) -> {
                     ACTIVE_SEARCHES.remove(packet.requestId());
 
@@ -66,7 +84,26 @@ public class SearchEngine {
                     if (server.isRunning()) {
                         server.execute(() -> iPayloadContext.reply(new SearchForContraptionsResponsePacket(packet.requestId(), result)));
                     }
+                }).exceptionally(throwable -> {
+                    SableFinder.LOGGER.error("An error occurred while searching for contraptions", throwable);
+
+                    if (server.isRunning()) {
+                        server.execute(() -> iPayloadContext.reply(new SearchForContraptionsResponsePacket(
+                                packet.requestId(),
+                                errorTag(errorReason(throwable))
+                        )));
+                    }
+
+                    return null;
                 });
+    }
+
+    private static @NotNull Component errorReason(@NotNull Throwable throwable) {
+        final Throwable cause = throwable.getCause() != null ? throwable.getCause() : throwable;
+
+        return cause.getMessage() != null
+                ? Component.literal(cause.getMessage())
+                : Component.translatable("sablefinder.ui.error.unknown");
     }
 
     public static void cancel(UUID requestId) {
@@ -74,6 +111,14 @@ public class SearchEngine {
         if (cancelled != null) {
             cancelled.set(true);
         }
+    }
+
+    public static final String ERROR_KEY = "sablefinderSearchError";
+
+    private static @NotNull CompoundTag errorTag(@NotNull Component reason) {
+        final CompoundTag tag = new CompoundTag();
+        tag.putString(ERROR_KEY, Component.translatable("sablefinder.ui.error.search", reason).getString());
+        return tag;
     }
 
     private static boolean isCancellation(Throwable error) {
@@ -135,17 +180,25 @@ public class SearchEngine {
 
     private static boolean matchesBlocks(@NotNull SableContraptionData contraption, @NotNull SearchFilters filters,
                                          @Nullable Map<ResourceLocation, BlockFilter> requiredBlocks) {
+        final Map<ResourceLocation, BlockFilter> required = requiredBlocks != null && !requiredBlocks.isEmpty()
+                ? requiredBlocks
+                : Map.of();
+
+        // Resolved once up front: matching on Block identity avoids a reverse registry lookup per block.
+        final Map<Block, ResourceLocation> wanted = new HashMap<>();
+        for (final ResourceLocation id : required.keySet()) {
+            wanted.put(BuiltInRegistries.BLOCK.get(id), id);
+        }
+
         final int[] total = {0};
         final Map<ResourceLocation, Integer> found = new HashMap<>();
 
-        contraption.forEachBlock((pos, state) -> {
-            total[0]++;
+        contraption.forEachBlockCount((block, count) -> {
+            total[0] += count;
 
-            if (requiredBlocks != null && !requiredBlocks.isEmpty()) {
-                final ResourceLocation id = BuiltInRegistries.BLOCK.getKey(state.getBlock());
-                if (requiredBlocks.containsKey(id)) {
-                    found.merge(id, 1, Integer::sum);
-                }
+            final ResourceLocation id = wanted.get(block);
+            if (id != null) {
+                found.merge(id, count, Integer::sum);
             }
         });
 
@@ -153,11 +206,9 @@ public class SearchEngine {
             return false;
         }
 
-        if (requiredBlocks != null) {
-            for (final BlockFilter requirement : requiredBlocks.values()) {
-                if (!requirement.matches(found.getOrDefault(requirement.block(), 0))) {
-                    return false;
-                }
+        for (final BlockFilter requirement : required.values()) {
+            if (!requirement.matches(found.getOrDefault(requirement.block(), 0))) {
+                return false;
             }
         }
 

@@ -14,7 +14,7 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.UUID;
 
-public record SableContraptionRequestPacket(UUID requestId, UUID contraptionId) implements RequestPayload<GetSableContraptionPacket> {
+public record SableContraptionRequestPacket(UUID requestId, UUID contraptionId) implements RequestPayload<SableContraptionResponsePacket> {
     public static final CustomPacketPayload.Type<SableContraptionRequestPacket> TYPE =
             new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath(SableFinder.MODID, "request_contraption"));
 
@@ -32,22 +32,22 @@ public record SableContraptionRequestPacket(UUID requestId, UUID contraptionId) 
     }
 
     @Override
-    public CustomPacketPayload.@NotNull Type<GetSableContraptionPacket> responseType() {
-        return GetSableContraptionPacket.TYPE;
+    public CustomPacketPayload.@NotNull Type<SableContraptionResponsePacket> responseType() {
+        return SableContraptionResponsePacket.TYPE;
     }
 
     public static void handleServer(@NotNull SableContraptionRequestPacket packet, @NotNull IPayloadContext iPayloadContext) {
         iPayloadContext.enqueueWork(() -> {
             if (iPayloadContext.player() instanceof ServerPlayer player) {
                 final MinecraftServer server = player.serverLevel().getServer();
-                SableUtils.getContraptionAsync(server, packet.contraptionId(), false).whenComplete((contraption, error) -> {
+                SableUtils.getContraptionAsync(server, packet.contraptionId()).whenComplete((contraption, error) -> {
                     if (error != null) {
                         SableFinder.LOGGER.error("An error occurred while loading contraption {} for player {}", packet.contraptionId(), player.getName().getString(), error);
                         return;
                     }
 
                     if (contraption != null && server.isRunning()) {
-                        server.execute(() -> iPayloadContext.reply(new GetSableContraptionPacket(packet.requestId(), contraption)));
+                        server.execute(() -> iPayloadContext.reply(new SableContraptionResponsePacket(packet.requestId(), contraption)));
                     }
                 });
             }

@@ -1,7 +1,7 @@
 package com.mas6y6.sablefinder;
 
 import com.mas6y6.sablefinder.networking.CheckExistencePacket;
-import com.mas6y6.sablefinder.networking.ClientMessagePacket;
+import com.mas6y6.sablefinder.networking.ClientToastMessagePacket;
 import com.mas6y6.sablefinder.networking.OpenGUIPacket;
 import com.mas6y6.sablefinder.networking.PacketRequests;
 import com.mas6y6.sablefinder.sable.SableUtils;
@@ -48,13 +48,15 @@ public class SFCommands {
         );
     }
 
+
     private static int executeVIEWUUID(@NotNull CommandContext<CommandSourceStack> context) {
         if (!context.getSource().isPlayer()) {
             context.getSource().sendFailure(Component.translatable("sablefinder.message.not_player"));
             return 0;
+
         }
 
-        if (!context.getSource().hasPermission(3)) {
+        if (!context.getSource().hasPermission(Commands.LEVEL_ADMINS)) {
             context.getSource().sendFailure(Component.translatable("sablefinder.message.no_permission"));
             return 0;
         }
@@ -103,7 +105,7 @@ public class SFCommands {
             return 0;
         }
 
-        if (!context.getSource().hasPermission(3)) {
+        if (!context.getSource().hasPermission(Commands.LEVEL_ADMINS)) {
             context.getSource().sendFailure(Component.translatable("sablefinder.message.no_permission"));
             return 0;
         }
@@ -174,7 +176,7 @@ public class SFCommands {
     }
 
     private static void notifyVersionMismatch(@NotNull ServerPlayer player, @NotNull CheckExistencePacket response) {
-        PacketDistributor.sendToPlayer(player, new ClientMessagePacket(
+        PacketDistributor.sendToPlayer(player, new ClientToastMessagePacket(
                 Component.translatable("sablefinder.message.version_mismatch.title"),
                 Component.translatable(
                         "sablefinder.message.version_mismatch.body",
