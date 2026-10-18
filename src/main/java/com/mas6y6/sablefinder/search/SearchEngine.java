@@ -25,8 +25,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.regex.Pattern;
-import java.util.regex.PatternSyntaxException;
 
 public class SearchEngine {
 
@@ -127,8 +125,8 @@ public class SearchEngine {
     }
 
     private static @NotNull CompoundTag search(@NotNull List<SableContraptionData> contraptions, @NotNull SearchFilters filters, @NotNull AtomicBoolean cancelled) {
-        final Pattern namePattern = filters.useNameSearch() ? globToPattern(filters.nameSearch()) : null;
-        final Pattern uuidPattern = filters.useUUIDSearch() ? globToPattern(filters.uuidSearch()) : null;
+        final String nameQuery = filters.useNameSearch() ? filters.nameSearch() : null;
+        final String uuidQuery = filters.useUUIDSearch() ? filters.uuidSearch() : null;
         final Map<ResourceLocation, BlockFilter> requiredBlocks = filters.useBlockSearch()
                 ? requiredBlockCounts(filters.blockFilters())
                 : null;
@@ -140,7 +138,7 @@ public class SearchEngine {
                 throw new CancellationException("Contraption search cancelled");
             }
 
-            if (matches(contraption, filters, namePattern, uuidPattern, requiredBlocks)) {
+            if (matches(contraption, filters, nameQuery, uuidQuery, requiredBlocks)) {
                 matches.add(contraption);
             }
         }
@@ -159,15 +157,17 @@ public class SearchEngine {
     }
 
     private static boolean matches(@NotNull SableContraptionData contraption, @NotNull SearchFilters filters,
-                                   @Nullable Pattern namePattern, @Nullable Pattern uuidPattern, @Nullable Map<ResourceLocation, BlockFilter> requiredBlocks) {
-        if (namePattern != null) {
+                                   @Nullable String nameQuery, @Nullable String uuidQuery, @Nullable Map<ResourceLocation, BlockFilter> requiredBlocks) {
+        final TextSearchMethod method = filters.textMethod();
+
+        if (nameQuery != null) {
             final String name = contraption.displayName() != null ? contraption.displayName() : "";
-            if (!namePattern.matcher(name).matches()) {
+            if (!method.matches(nameQuery, name)) {
                 return false;
             }
         }
 
-        if (uuidPattern != null && !uuidPattern.matcher(contraption.uuid().toString()).matches()) {
+        if (uuidQuery != null && !method.matches(uuidQuery, contraption.uuid().toString())) {
             return false;
         }
 
@@ -226,58 +226,5 @@ public class SearchEngine {
             case AT_LEAST_OR_EQUAL -> actual >= min;
             case BETWEEN -> actual >= min && actual <= max;
         };
-    }
-
-    private static @NotNull Pattern globToPattern(@NotNull String glob) {
-        final StringBuilder regex = new StringBuilder();
-
-        for (int i = 0; i < glob.length(); i++) {
-            final char c = glob.charAt(i);
-            switch (c) {
-                case '*' -> {
-                    if (i + 1 < glob.length() && glob.charAt(i + 1) == '*') {
-                        i++;
-                    }
-                    regex.append(".*");
-                }
-                case '?' -> regex.append('.');
-                case '[' -> {
-                    final int end = glob.indexOf(']', i + 1);
-                    if (end == -1) {
-                        regex.append("\\[");
-                        break;
-                    }
-
-                    final String classBody = glob.substring(i + 1, end);
-                    if (classBody.startsWith("!") || classBody.startsWith("^")) {
-                        regex.append("[^").append(classBody.substring(1)).append(']');
-                    } else {
-                        regex.append('[').append(classBody).append(']');
-                    }
-
-                    i = end;
-                }
-                case '\\' -> {
-                    if (i + 1 < glob.length()) {
-                        regex.append(Pattern.quote(String.valueOf(glob.charAt(i + 1))));
-                        i++;
-                    } else {
-                        regex.append("\\\\");
-                    }
-                }
-                default -> regex.append(escapeRegex(c));
-            }
-        }
-
-        try {
-            return Pattern.compile(regex.toString(), Pattern.CASE_INSENSITIVE);
-        } catch (PatternSyntaxException e) {
-            SableFinder.LOGGER.warn("Invalid glob pattern '{}' ({}) - matching literally", glob, e.getMessage());
-            return Pattern.compile(Pattern.quote(glob), Pattern.CASE_INSENSITIVE);
-        }
-    }
-
-    private static @NotNull String escapeRegex(char c) {
-        return "\\.^$|+(){}]".indexOf(c) != -1 ? "\\" + c : String.valueOf(c);
     }
 }

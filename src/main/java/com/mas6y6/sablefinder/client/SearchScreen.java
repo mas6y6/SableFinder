@@ -4,6 +4,7 @@ import com.mas6y6.sablefinder.search.BlockFilter;
 import com.mas6y6.sablefinder.search.BlockSearchMethod;
 import com.mas6y6.sablefinder.search.SearchEngine;
 import com.mas6y6.sablefinder.search.SearchFilters;
+import com.mas6y6.sablefinder.search.TextSearchMethod;
 import io.wispforest.owo.ui.base.BaseOwoScreen;
 import io.wispforest.owo.ui.component.BlockComponent;
 import io.wispforest.owo.ui.component.ButtonComponent;
@@ -43,6 +44,7 @@ public class SearchScreen extends BaseOwoScreen<FlowLayout> {
     private static SearchConfig savedConfig;
 
     private record SearchConfig(
+            TextSearchMethod textMethod,
             boolean useName,
             String name,
             boolean useUuid,
@@ -58,6 +60,10 @@ public class SearchScreen extends BaseOwoScreen<FlowLayout> {
     private final SableFinderScreen parent;
 
     // --- textual filters ---------------------------------------------------
+
+    private final ButtonComponent textMethodButton =
+            Components.button(Component.empty(), this::cycleTextMethod);
+    private TextSearchMethod textMethod = TextSearchMethod.CONTAINS;
 
     private final CheckboxComponent useNameCheckbox =
             Components.checkbox(Component.translatable("sablefinder.ui.search.name"));
@@ -116,6 +122,9 @@ public class SearchScreen extends BaseOwoScreen<FlowLayout> {
     }
 
     private void configureComponents() {
+        textMethodButton.setMessage(textMethodLabel());
+        textMethodButton.tooltip(Component.translatable("sablefinder.ui.search.text_method.tooltip"));
+
         nameBox.setHint(Component.translatable("sablefinder.ui.search.name.hint"));
         nameBox.setMaxLength(256);
 
@@ -144,6 +153,7 @@ public class SearchScreen extends BaseOwoScreen<FlowLayout> {
     private void loadConfig() {
         if (savedConfig == null) return;
 
+        setTextMethod(savedConfig.textMethod());
         useNameCheckbox.checked(savedConfig.useName());
         nameBox.text(savedConfig.name());
         useUuidCheckbox.checked(savedConfig.useUuid());
@@ -159,6 +169,7 @@ public class SearchScreen extends BaseOwoScreen<FlowLayout> {
 
     private void saveConfig() {
         savedConfig = new SearchConfig(
+                textMethod,
                 useNameCheckbox.selected(),
                 nameBox.getValue(),
                 useUuidCheckbox.selected(),
@@ -244,6 +255,12 @@ public class SearchScreen extends BaseOwoScreen<FlowLayout> {
         final FlowLayout filters = Containers.verticalFlow(Sizing.fill(100), Sizing.content());
         filters.gap(5);
         filters.padding(Insets.right(4));
+
+        final FlowLayout textMethodCard = card();
+        textMethodButton.horizontalSizing(Sizing.fill(100));
+        textMethodButton.verticalSizing(Sizing.fixed(18));
+        textMethodCard.child(textMethodButton);
+        filters.child(textMethodCard);
 
         final FlowLayout nameCard = card();
         nameCard.child(useNameCheckbox);
@@ -676,6 +693,8 @@ public class SearchScreen extends BaseOwoScreen<FlowLayout> {
     }
 
     private void resetFilters() {
+        setTextMethod(TextSearchMethod.CONTAINS);
+
         useNameCheckbox.checked(false);
         nameBox.text("");
 
@@ -692,6 +711,16 @@ public class SearchScreen extends BaseOwoScreen<FlowLayout> {
         rebuildSelectedBlocks();
         closeBlockPicker();
 
+        onFilterToggled();
+    }
+
+    private void cycleTextMethod(@NotNull ButtonComponent button) {
+        setTextMethod(textMethod.next());
+    }
+
+    private void setTextMethod(@NotNull TextSearchMethod method) {
+        textMethod = method;
+        textMethodButton.setMessage(textMethodLabel());
         onFilterToggled();
     }
 
@@ -726,6 +755,8 @@ public class SearchScreen extends BaseOwoScreen<FlowLayout> {
 
     private @NotNull SearchFilters buildFilters() {
         return new SearchFilters(
+                textMethod,
+
                 useNameCheckbox.selected() && !nameBox.getValue().isBlank(),
                 nameBox.getValue(),
 
@@ -792,6 +823,10 @@ public class SearchScreen extends BaseOwoScreen<FlowLayout> {
     }
 
     // --- helpers -----------------------------------------------------------
+
+    private @NotNull Component textMethodLabel() {
+        return Component.translatable("sablefinder.ui.search.text_method.method", Component.translatable(textMethod.translationKey()));
+    }
 
     private @NotNull Component blockSizeMethodLabel() {
         return Component.translatable("sablefinder.ui.search.block_size.method", methodName(blockSearchMethod));
