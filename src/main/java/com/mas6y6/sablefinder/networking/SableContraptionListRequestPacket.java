@@ -12,6 +12,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.Optional;
 import java.util.UUID;
 
 public record SableContraptionListRequestPacket(UUID requestId) implements RequestPayload<SableContraptionListResponsePacket> {
@@ -39,7 +40,7 @@ public record SableContraptionListRequestPacket(UUID requestId) implements Reque
             if (iPayloadContext.player() instanceof ServerPlayer player) {
                 try {
                     final MinecraftServer server = player.serverLevel().getServer();
-                    SableUtils.buildContraptionsTagAsync(server).whenComplete((tag, error) -> {
+                    SableUtils.buildContraptionsTagAsync(server, Optional.of(player)).whenComplete((tag, error) -> {
                         if (error != null) {
                             SableFinder.LOGGER.error("An error occurred while loading contraption list for player {}", player.getName().getString(), error);
                             return;

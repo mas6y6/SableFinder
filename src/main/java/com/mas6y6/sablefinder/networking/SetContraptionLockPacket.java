@@ -15,6 +15,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.Optional;
 import java.util.UUID;
 
 public record SetContraptionLockPacket(UUID requestId, UUID contraptionId, boolean locked)
@@ -70,7 +71,7 @@ public record SetContraptionLockPacket(UUID requestId, UUID contraptionId, boole
                 }
             }
 
-            SableUtils.getContraptionAsync(server, packet.contraptionId()).whenComplete((contraption, error) -> {
+            SableUtils.getContraptionAsync(server, packet.contraptionId(), Optional.of(player)).whenComplete((contraption, error) -> {
                 if (error != null) {
                     SableFinder.LOGGER.error("An error occurred while loading contraption {} after a lock change for player {}",
                             packet.contraptionId(), player.getName().getString(), error);

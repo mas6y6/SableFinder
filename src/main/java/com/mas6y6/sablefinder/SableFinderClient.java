@@ -29,6 +29,7 @@ import java.io.IOException;
 public class SableFinderClient {
     public static final Logger LOGGER = LogUtils.getLogger();
     public static final SystemToast.SystemToastId SYSTEM_TOAST_ID = new SystemToast.SystemToastId();
+    public static final SystemToast.SystemToastId PROGRESS_TOAST_ID = new SystemToast.SystemToastId();
 
     private static @NotNull ModContainer modContainer;
 

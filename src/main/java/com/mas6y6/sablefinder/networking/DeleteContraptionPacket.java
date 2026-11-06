@@ -13,6 +13,7 @@ import net.neoforged.neoforge.network.PacketDistributor;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.Optional;
 import java.util.UUID;
 
 public record DeleteContraptionPacket(UUID contraptionUUID) implements CustomPacketPayload {
@@ -34,13 +35,13 @@ public record DeleteContraptionPacket(UUID contraptionUUID) implements CustomPac
     public static void handleServer(@NotNull DeleteContraptionPacket packet, @NotNull IPayloadContext iPayloadContext) {
         iPayloadContext.enqueueWork(() -> {
             if (iPayloadContext.player() instanceof ServerPlayer player ) {
-                if (SableUtils.deleteContraption(player.server, packet.contraptionUUID())) {
-                    PacketDistributor.sendToPlayer(player, new ClientToastMessagePacket(
+                if (SableUtils.deleteContraption(player.server, packet.contraptionUUID(), Optional.of(player))) {
+                    PacketDistributor.sendToPlayer(player, new ClientToastMessagePacket(ClientToastMessagePacket.SLOT_SYSTEM,
                             Component.translatable("sablefinder.message.delete.title"),
                             Component.translatable("sablefinder.message.delete.success")
                     ));
                 } else {
-                    PacketDistributor.sendToPlayer(player, new ClientToastMessagePacket(
+                    PacketDistributor.sendToPlayer(player, new ClientToastMessagePacket(ClientToastMessagePacket.SLOT_SYSTEM,
                             Component.translatable("sablefinder.message.delete.failed_title"),
                             Component.translatable("sablefinder.message.delete.failed")
                     ));
