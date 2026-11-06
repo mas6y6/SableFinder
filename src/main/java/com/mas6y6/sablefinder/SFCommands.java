@@ -36,7 +36,10 @@ public class SFCommands {
                                         .then(
                                                 argument("uuid", StringArgumentType.string())
                                                         .suggests((context,builder) -> {
-                                                            SableUtils.getCachedContraptionUuids(context.getSource().getServer())
+                                                            SableUtils.getCachedContraptionUuids(
+                            context.getSource().getServer(),
+                            Optional.ofNullable(context.getSource().getPlayer())
+                    )
                                                                     .forEach(uuid -> builder.suggest(uuid.toString()));
 
                                                             return builder.buildFuture();
@@ -176,7 +179,7 @@ public class SFCommands {
     }
 
     private static void notifyVersionMismatch(@NotNull ServerPlayer player, @NotNull CheckExistencePacket response) {
-        PacketDistributor.sendToPlayer(player, new ClientToastMessagePacket(
+        PacketDistributor.sendToPlayer(player, new ClientToastMessagePacket(ClientToastMessagePacket.SLOT_SYSTEM,
                 Component.translatable("sablefinder.message.version_mismatch.title"),
                 Component.translatable(
                         "sablefinder.message.version_mismatch.body",

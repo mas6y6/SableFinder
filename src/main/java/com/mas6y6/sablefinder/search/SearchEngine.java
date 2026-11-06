@@ -1,17 +1,21 @@
 package com.mas6y6.sablefinder.search;
 
 import com.mas6y6.sablefinder.SableFinder;
+import com.mas6y6.sablefinder.networking.ClientToastMessagePacket;
 import com.mas6y6.sablefinder.networking.SearchForContraptionsRequestPacket;
 import com.mas6y6.sablefinder.networking.SearchForContraptionsResponsePacket;
 import com.mas6y6.sablefinder.sable.SableContraptionData;
 import com.mas6y6.sablefinder.sable.SableUtils;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
+import net.neoforged.neoforge.network.PacketDistributor;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -19,18 +23,65 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.regex.Pattern;
-import java.util.regex.PatternSyntaxException;
+import java.util.concurrent.atomic.AtomicLong;
 
 public class SearchEngine {
 
     private static final Map<UUID, AtomicBoolean> ACTIVE_SEARCHES = new ConcurrentHashMap<>();
+
+    private static final class SearchProgress {
+        private static final long MIN_INTERVAL_MS = 400L;
+
+        private final @Nullable ServerPlayer player;
+        private final AtomicLong lastSentAt = new AtomicLong(0L);
+
+        SearchProgress(@Nullable ServerPlayer player) {
+            this.player = player;
+        }
+
+        void stage(@NotNull Component message) {
+            send(message);
+            lastSentAt.set(System.currentTimeMillis());
+        }
+
+        void scanned(int count) {
+            final long now = System.currentTimeMillis();
+            final long last = lastSentAt.get();
+
+            if (now - last < MIN_INTERVAL_MS || !lastSentAt.compareAndSet(last, now)) {
+                return;
+            }
+
+            send(Component.translatable("sablefinder.message.search.scanning", count));
+        }
+
+        private void send(@NotNull Component message) {
+            final ServerPlayer target = player;
+
+            if (target == null) {
+                return;
+            }
+
+            final MinecraftServer server = target.getServer();
+
+            if (server == null) {
+                return;
+            }
+
+            server.execute(() -> PacketDistributor.sendToPlayer(target, new ClientToastMessagePacket(
+                    ClientToastMessagePacket.SLOT_PROGRESS,
+                    Component.translatable("sablefinder.message.search.progress_title"),
+                    message
+            )));
+        }
+    }
 
     public static void searchPacket(@NotNull SearchForContraptionsRequestPacket packet, @NotNull IPayloadContext iPayloadContext) {
         final SearchFilters filters = packet.searchFilters();
@@ -41,15 +92,24 @@ public class SearchEngine {
             return;
         }
 
+        // Present so scan failures can be surfaced to whoever asked; empty for non-player sources.
+        final Optional<ServerPlayer> requester = iPayloadContext.player() instanceof ServerPlayer searcher
+                ? Optional.of(searcher)
+                : Optional.empty();
+
         final AtomicBoolean cancelled = new AtomicBoolean(false);
         ACTIVE_SEARCHES.put(packet.requestId(), cancelled);
 
+        final SearchProgress progress = new SearchProgress(requester.orElse(null));
+
         final CompletableFuture<List<SableContraptionData>> scan;
         try {
-            scan = SableUtils.getAllContraptionsAsync(server, cancelled);
+            progress.stage(Component.translatable("sablefinder.message.search.starting"));
+            scan = SableUtils.getAllContraptionsAsync(server, cancelled, requester, progress::scanned);
         } catch (Exception exception) {
             ACTIVE_SEARCHES.remove(packet.requestId());
             SableFinder.LOGGER.error("Failed to start a contraption search", exception);
+            progress.stage(Component.translatable("sablefinder.message.search.failed"));
 
             iPayloadContext.reply(new SearchForContraptionsResponsePacket(
                     packet.requestId(),
@@ -65,27 +125,38 @@ public class SearchEngine {
 
                     if (isCancellation(error) || cancelled.get()) {
                         SableFinder.LOGGER.debug("Cancelled search {}", packet.requestId());
+                        progress.stage(Component.translatable("sablefinder.message.search.cancelled"));
                         return;
                     }
 
                     if (error != null) {
                         SableFinder.LOGGER.error("An error occurred while searching for contraptions", error);
+                        progress.stage(Component.translatable("sablefinder.message.search.failed"));
                         return;
                     }
 
+                    progress.stage(Component.translatable("sablefinder.message.search.filtering", contraptions.size()));
+
                     final CompoundTag result;
                     try {
-                        result = search(contraptions, filters, cancelled);
+                        result = search(contraptions, filters, cancelled, requester);
                     } catch (final CancellationException cancellation) {
                         SableFinder.LOGGER.debug("Cancelled search {}", packet.requestId());
+                        progress.stage(Component.translatable("sablefinder.message.search.cancelled"));
                         return;
                     }
+
+                    progress.stage(Component.translatable(
+                            "sablefinder.message.search.done",
+                            result.getList("sableContraptionsUUID", Tag.TAG_COMPOUND).size()
+                    ));
 
                     if (server.isRunning()) {
                         server.execute(() -> iPayloadContext.reply(new SearchForContraptionsResponsePacket(packet.requestId(), result)));
                     }
                 }).exceptionally(throwable -> {
                     SableFinder.LOGGER.error("An error occurred while searching for contraptions", throwable);
+                    progress.stage(Component.translatable("sablefinder.message.search.failed"));
 
                     if (server.isRunning()) {
                         server.execute(() -> iPayloadContext.reply(new SearchForContraptionsResponsePacket(
@@ -126,9 +197,10 @@ public class SearchEngine {
                 || (error instanceof CompletionException && error.getCause() instanceof CancellationException);
     }
 
-    private static @NotNull CompoundTag search(@NotNull List<SableContraptionData> contraptions, @NotNull SearchFilters filters, @NotNull AtomicBoolean cancelled) {
-        final Pattern namePattern = filters.useNameSearch() ? globToPattern(filters.nameSearch()) : null;
-        final Pattern uuidPattern = filters.useUUIDSearch() ? globToPattern(filters.uuidSearch()) : null;
+    private static @NotNull CompoundTag search(@NotNull List<SableContraptionData> contraptions, @NotNull SearchFilters filters,
+                                            @NotNull AtomicBoolean cancelled, @NotNull Optional<ServerPlayer> requester) {
+        final String nameQuery = filters.useNameSearch() ? filters.nameSearch() : null;
+        final String uuidQuery = filters.useUUIDSearch() ? filters.uuidSearch() : null;
         final Map<ResourceLocation, BlockFilter> requiredBlocks = filters.useBlockSearch()
                 ? requiredBlockCounts(filters.blockFilters())
                 : null;
@@ -140,12 +212,12 @@ public class SearchEngine {
                 throw new CancellationException("Contraption search cancelled");
             }
 
-            if (matches(contraption, filters, namePattern, uuidPattern, requiredBlocks)) {
+            if (matches(contraption, filters, nameQuery, uuidQuery, requiredBlocks)) {
                 matches.add(contraption);
             }
         }
 
-        return SableUtils.buildContraptionsTag(matches);
+        return SableUtils.buildContraptionsTag(matches, requester);
     }
 
     private static @NotNull Map<ResourceLocation, BlockFilter> requiredBlockCounts(@NotNull List<BlockFilter> blockFilters) {
@@ -159,15 +231,17 @@ public class SearchEngine {
     }
 
     private static boolean matches(@NotNull SableContraptionData contraption, @NotNull SearchFilters filters,
-                                   @Nullable Pattern namePattern, @Nullable Pattern uuidPattern, @Nullable Map<ResourceLocation, BlockFilter> requiredBlocks) {
-        if (namePattern != null) {
+                                   @Nullable String nameQuery, @Nullable String uuidQuery, @Nullable Map<ResourceLocation, BlockFilter> requiredBlocks) {
+        final TextSearchMethod method = filters.textMethod();
+
+        if (nameQuery != null) {
             final String name = contraption.displayName() != null ? contraption.displayName() : "";
-            if (!namePattern.matcher(name).matches()) {
+            if (!method.matches(nameQuery, name)) {
                 return false;
             }
         }
 
-        if (uuidPattern != null && !uuidPattern.matcher(contraption.uuid().toString()).matches()) {
+        if (uuidQuery != null && !method.matches(uuidQuery, contraption.uuid().toString())) {
             return false;
         }
 
@@ -226,58 +300,5 @@ public class SearchEngine {
             case AT_LEAST_OR_EQUAL -> actual >= min;
             case BETWEEN -> actual >= min && actual <= max;
         };
-    }
-
-    private static @NotNull Pattern globToPattern(@NotNull String glob) {
-        final StringBuilder regex = new StringBuilder();
-
-        for (int i = 0; i < glob.length(); i++) {
-            final char c = glob.charAt(i);
-            switch (c) {
-                case '*' -> {
-                    if (i + 1 < glob.length() && glob.charAt(i + 1) == '*') {
-                        i++;
-                    }
-                    regex.append(".*");
-                }
-                case '?' -> regex.append('.');
-                case '[' -> {
-                    final int end = glob.indexOf(']', i + 1);
-                    if (end == -1) {
-                        regex.append("\\[");
-                        break;
-                    }
-
-                    final String classBody = glob.substring(i + 1, end);
-                    if (classBody.startsWith("!") || classBody.startsWith("^")) {
-                        regex.append("[^").append(classBody.substring(1)).append(']');
-                    } else {
-                        regex.append('[').append(classBody).append(']');
-                    }
-
-                    i = end;
-                }
-                case '\\' -> {
-                    if (i + 1 < glob.length()) {
-                        regex.append(Pattern.quote(String.valueOf(glob.charAt(i + 1))));
-                        i++;
-                    } else {
-                        regex.append("\\\\");
-                    }
-                }
-                default -> regex.append(escapeRegex(c));
-            }
-        }
-
-        try {
-            return Pattern.compile(regex.toString(), Pattern.CASE_INSENSITIVE);
-        } catch (PatternSyntaxException e) {
-            SableFinder.LOGGER.warn("Invalid glob pattern '{}' ({}) - matching literally", glob, e.getMessage());
-            return Pattern.compile(Pattern.quote(glob), Pattern.CASE_INSENSITIVE);
-        }
-    }
-
-    private static @NotNull String escapeRegex(char c) {
-        return "\\.^$|+(){}]".indexOf(c) != -1 ? "\\" + c : String.valueOf(c);
     }
 }
