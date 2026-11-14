@@ -89,12 +89,13 @@
   "sablefinder.ui.copied": "Copied",
   "sablefinder.ui.copied_exclaim": "Copied!",
   "sablefinder.ui.delete_confirm": "§cYou Sure?",
+  "sablefinder.ui.button.deleting": "Deleting...",
 
   "sablefinder.ui.section.actions": "§eActions",
   "sablefinder.ui.section.position_pose": "§ePosition & Pose",
   "sablefinder.ui.section.sublevel_storage": "§eSubLevel Storage",
   "sablefinder.ui.section.motion": "§eMotion",
-  "sablefinder.ui.section.dependencies": "§eDependencies (%s)",
+  "sablefinder.ui.section.dependencies": "§eDependencies §r(%s)",
   "sablefinder.ui.section.debug_actions": "§eDebugging Actions",
 
   "sablefinder.ui.data.position": "Position",
@@ -188,6 +189,8 @@
   "sablefinder.message.delete.success": "Contraption Successfully deleted!",
   "sablefinder.message.delete.failed_title": "Failed to delete contraption",
   "sablefinder.message.delete.failed": "An error occurred while deleting the contraption. Check server logs.",
+  "sablefinder.message.reselection_failed.title": "Could not reopen contraption",
+  "sablefinder.message.reselection_failed.body": "The contraption you last viewed could not be reselected. It may have been removed or failed to load.",
 
   "sablefinder.message.search.progress_title": "§bSableFinder Search",
   "sablefinder.message.search.starting": "Starting search...",
