@@ -34,11 +34,11 @@ Perform common actions directly from the search menu:
 - **Copy Coordinates** – Copy a contraption's coordinates to your clipboard.
 - **Delete** – Remove a contraption from the world. (Please be careful with this one!)
 
-### Simulated Integration
+### Aeronautics Integration
 
-Have [Simulated](https://modrinth.com/mod/simulated) installed? You can freeze contraptions directly from the sableFinder menu!
+Have [Create Aeronautics](https://modrinth.com/mod/create-aeronautics) installed? You can freeze contraptions directly from the sableFinder menu!
 
-(Seriously, you should have Simulated installed. Why wouldn't you?)
+(Seriously, you should have Aeronautics installed. Why wouldn't you?)
 
 ## Made for Project Crowbar!
 
