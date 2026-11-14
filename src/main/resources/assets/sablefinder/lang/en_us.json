@@ -1,8 +1,4 @@
 {
-  "itemGroup.sablefinder": "Example Mod Tab",
-  "block.sablefinder.example_block": "Example Block",
-  "item.sablefinder.example_item": "Example Item",
-
   "sablefinder.configuration.title": "sableFinder Configs",
   "sablefinder.configuration.section.sablefinder.client.toml": "Client Config",
   "sablefinder.configuration.section.sablefinder.client.toml.title": "Client Config",

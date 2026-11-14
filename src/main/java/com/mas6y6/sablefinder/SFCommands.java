@@ -33,6 +33,7 @@ public class SFCommands {
                 Commands.literal("sablefinder")
                         .then(
                                 Commands.literal("view_uuid")
+                                        .requires(source -> source.hasPermission(Commands.LEVEL_ADMINS))
                                         .then(
                                                 argument("uuid", StringArgumentType.string())
                                                         .suggests((context,builder) -> {
@@ -44,24 +45,22 @@ public class SFCommands {
 
                                                             return builder.buildFuture();
                                                         })
-                                                        .executes(SFCommands::executeVIEWUUID)
+                                                        .requires(source -> source.hasPermission(Commands.LEVEL_ADMINS))
+                                                        .executes(SFCommands::executeViewUuid)
                                         )
                         )
-                        .then(Commands.literal("open").executes(SFCommands::executeOPENGUI))
+                        .then(Commands.literal("open")
+                                .requires(source -> source.hasPermission(Commands.LEVEL_ADMINS))
+                                .executes(SFCommands::executeOpenGui))
         );
     }
 
 
-    private static int executeVIEWUUID(@NotNull CommandContext<CommandSourceStack> context) {
+    private static int executeViewUuid(@NotNull CommandContext<CommandSourceStack> context) {
         if (!context.getSource().isPlayer()) {
             context.getSource().sendFailure(Component.translatable("sablefinder.message.not_player"));
-            return 0;
+            return 1;
 
-        }
-
-        if (!context.getSource().hasPermission(Commands.LEVEL_ADMINS)) {
-            context.getSource().sendFailure(Component.translatable("sablefinder.message.no_permission"));
-            return 0;
         }
 
         try {
@@ -102,15 +101,10 @@ public class SFCommands {
         return 0;
     }
 
-    private static int executeOPENGUI(@NotNull CommandContext<CommandSourceStack> context) {
+    private static int executeOpenGui(@NotNull CommandContext<CommandSourceStack> context) {
         if (!context.getSource().isPlayer()) {
             context.getSource().sendFailure(Component.translatable("sablefinder.message.not_player"));
-            return 0;
-        }
-
-        if (!context.getSource().hasPermission(Commands.LEVEL_ADMINS)) {
-            context.getSource().sendFailure(Component.translatable("sablefinder.message.no_permission"));
-            return 0;
+            return 1;
         }
 
         try {
@@ -120,7 +114,7 @@ public class SFCommands {
                 CompletableFuture.supplyAsync(() -> awaitClientResponse(player))
                         .thenAcceptAsync(response -> {
                             if (response == null) {
-                                context.getSource().sendFailure(Component.translatable("sablefinder.message.client_mod_missing"));
+                                context.getSource().sendFailure(Component.literal("Client does not have the SableFinder mod installed."));
                                 return;
                             }
 
