@@ -2,31 +2,48 @@
 
 # sableFinder
 
-**Required on the server. Clients must install the mod and [owo-lib] to access its features.**
+**Required on the server. Clients must also install [sableFinder](https://modrinth.com/mod/sablefinder) and [owo-lib](https://modrinth.com/mod/owo-lib) to access its features.**
 
-SableFinder is a utlity mod for [sable](https://modrinth.com/mod/sable) that allows you to find contraptions anywhere in the world!
+**sableFinder** is a utility mod for [Sable](https://modrinth.com/mod/sable) that makes finding and managing contraptions across your world easier than ever.
 
-This mod is especially useful for create mod servers since its very hard to find contraptions with the built in sable commands.
+Originally developed with large Create mod servers in mind, sableFinder provides a more convenient way to locate contraptions than Sable's built-in commands. Whether you're managing a massive multiplayer server or exploring a large singleplayer world, sableFinder makes contraption management much less of a hassle.
 
-## What does it do?
+## Features
 
-Well SableFinder allows you to find any contraption in the world! Especially for massive singleplayer worlds or multiplayer worlds!
+### Advanced Search
 
-Features:
-- Search Filters
-    - Via Block amounts
-    - Contraption name
-    - Amount of blocks ( Equal, Less Then, Greater Then, Between )
-    - UUID searching ( idk if this is useful but it might help in some cases )
-- Quick browsing ( via arrow keys by default )
-- Basic actions to
-    - Teleport to the contraption
-    - Copy contraption coordinates
-    - And to Delete the contraption ( why would you do this?! )
-    - and with simulated installed ( you should have simulated installed why would you not? ) you can freeze the contraption stright from the menu!
+Find exactly what you're looking for with a variety of search filters:
 
-### Made for Project Crowbar!
+- **Contraption Name** – Search for contraptions by name.
+- **Block Count** – Filter contraptions based on their number of blocks:
+  - Equal to
+  - Less than
+  - Greater than
+  - Between
+- **UUID** – Search for a contraption using its unique identifier.
 
-Developed with the Project Crowbar community to make contraption management easier and less of a hassle.
+### Quick Browsing
 
-[Join the server!](https://projectcrowbar.com/)
+Browse through search results quickly and conveniently using keyboard navigation (arrow keys by default).
+
+### Contraption Management
+
+Perform common actions directly from the search menu:
+
+- **Teleport** – Instantly teleport to a contraption.
+- **Copy Coordinates** – Copy a contraption's coordinates to your clipboard.
+- **Delete** – Remove a contraption from the world. (Please be careful with this one!)
+
+### Simulated Integration
+
+Have [Simulated](https://modrinth.com/mod/simulated) installed? You can freeze contraptions directly from the sableFinder menu!
+
+(Seriously, you should have Simulated installed. Why wouldn't you?)
+
+## Made for Project Crowbar!
+
+sableFinder was developed alongside the **Project Crowbar** community to make contraption management easier, faster, and less frustrating.
+
+Whether you're a server administrator or just someone with way too many contraptions, sableFinder has you covered.
+
+**[Join the Project Crowbar community!](https://projectcrowbar.com/)**
