@@ -40,7 +40,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
-import java.util.stream.Collectors;
 
 public class SableUtils {
     private static void report(@Nullable Optional<ServerPlayer> player, @NotNull Component message) {
@@ -154,9 +153,11 @@ public class SableUtils {
                 continue;
             }
 
-            final Set<UUID> loadedUuids = container.getAllSubLevels().stream()
-                    .map(SubLevel::getUniqueId)
-                    .collect(Collectors.toSet());
+            final List<ServerSubLevel> subLevels = container.getAllSubLevels();
+            final Set<UUID> loadedUuids = new HashSet<>(subLevels.size());
+            for (final ServerSubLevel subLevel : subLevels) {
+                loadedUuids.add(subLevel.getUniqueId());
+            }
 
             final SubLevelHoldingChunkMap holdingChunkMap = container.getHoldingChunkMap();
 
@@ -165,7 +166,7 @@ public class SableUtils {
                     holdingChunkMap.getStorage(),
                     loadedUuids,
                     lockedUuids,
-                    captureLiveSubLevels(container, holdingChunkMap, player)
+                    captureLiveSubLevels(subLevels, holdingChunkMap, player)
             ));
         }
 
@@ -173,7 +174,7 @@ public class SableUtils {
     }
 
     private static @NotNull Map<UUID, SubLevelData> captureLiveSubLevels(
-            @NotNull ServerSubLevelContainer container,
+            @NotNull List<ServerSubLevel> subLevels,
             @NotNull SubLevelHoldingChunkMap holdingChunkMap,
             Optional<ServerPlayer> player
     ) {
@@ -190,7 +191,7 @@ public class SableUtils {
             live.put(data.uuid(), data);
         }
 
-        for (final ServerSubLevel subLevel : container.getAllSubLevels()) {
+        for (final ServerSubLevel subLevel : subLevels) {
             final List<UUID> dependencies = SubLevelHelper.getLoadingDependencyChain(subLevel).stream()
                     .map(SubLevel::getUniqueId)
                     .toList();

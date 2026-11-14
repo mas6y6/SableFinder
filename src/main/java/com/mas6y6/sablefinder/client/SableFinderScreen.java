@@ -34,8 +34,10 @@ import org.joml.Vector3d;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
@@ -45,6 +47,7 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
 
     private static final int COLLAPSED_SIDEBAR_WIDTH = 10;
     private static final int SCROLLBAR_RIGHT_PADDING = 8;
+    private static final SystemToast.SystemToastId RESELECTION_TOAST_ID = new SystemToast.SystemToastId();
 
     private @Nullable CompoundTag sableContraptionsCompoundTag;
 
@@ -53,10 +56,12 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
     private static @Nullable UUID lastSelectedId = null;
 
     private final List<ContraptionEntry> contraptions = new ArrayList<>();
+    private final Map<UUID, Integer> contraptionIndices = new HashMap<>();
 
     private final List<ContraptionItem> listItems = new ArrayList<>();
 
     private final @Nullable UUID initiallySelectedId;
+    private boolean initialReselectionPending;
 
     private final boolean refreshOnOpen;
 
@@ -91,6 +96,7 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
         // the refreshOnOpen() function fills the sableContraptionsCompoundTag variable so the opengui packet doesnt send it anymore.
 
         this.initiallySelectedId = selectedContraptionID.orElse(lastSelectedId);
+        this.initialReselectionPending = initiallySelectedId != null;
         this.refreshOnOpen = ConfigClient.refreshOnOpen();
         parseContraptions();
     }
@@ -129,6 +135,9 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
 
                     if (error != null || tag == null) {
                         showRequestError("sablefinder.ui.error.reload_contraptions", error);
+                        if (selectedUuid == null) {
+                            notifyReselectionFailed();
+                        }
                     } else {
                         applyContraptions(tag);
                     }
@@ -147,14 +156,22 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
         updateHeader();
         rebuildContraptionList();
 
-        if (selectedUuid != null && containsContraption(selectedUuid)) {
-            selectContraption(selectedUuid);
-        } else if (!contraptions.isEmpty()) {
-            selectContraption(contraptions.getFirst().uuid());
+        UUID preferredUuid = selectedUuid != null ? selectedUuid : initiallySelectedId;
+        if (preferredUuid != null && containsContraption(preferredUuid)) {
+            selectContraption(preferredUuid);
         } else {
-            selectedUuid = null;
-            updateContraptionSelection();
-            showNoSelection();
+            if (!isSearchResults && initialReselectionPending
+                    && Objects.equals(preferredUuid, initiallySelectedId)) {
+                notifyReselectionFailed();
+            }
+
+            if (!contraptions.isEmpty()) {
+                selectContraption(contraptions.getFirst().uuid());
+            } else {
+                selectedUuid = null;
+                updateContraptionSelection();
+                showNoSelection();
+            }
         }
     }
 
@@ -170,6 +187,10 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
     private void selectContraption(UUID uuid) {
         if (!ClientPayloadHandler.isCompatible()) {
             return;
+        }
+
+        if (!Objects.equals(uuid, initiallySelectedId)) {
+            initialReselectionPending = false;
         }
 
         this.selectedUuid = uuid;
@@ -190,8 +211,14 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
                     }
 
                     if (error != null || data == null) {
+                        if (initialReselectionPending && Objects.equals(uuid, initiallySelectedId)) {
+                            notifyReselectionFailed();
+                        }
                         showRequestError("sablefinder.ui.error.load_contraption", error);
                     } else {
+                        if (Objects.equals(uuid, initiallySelectedId)) {
+                            initialReselectionPending = false;
+                        }
                         detailsContent.clearChildren();
                         displayContraptionDetails(data);
                     }
@@ -248,6 +275,7 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
 
     private void parseContraptions() {
         contraptions.clear();
+        contraptionIndices.clear();
 
         ensureSortByAvailable();
 
@@ -316,6 +344,11 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
 
             return sortDirection == SortDirection.DESCENDING ? -result : result;
         });
+
+        contraptionIndices.clear();
+        for (int i = 0; i < contraptions.size(); i++) {
+            contraptionIndices.putIfAbsent(contraptions.get(i).uuid(), i);
+        }
     }
 
     private void applySort() {
@@ -360,11 +393,9 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
             return;
         }
 
-        for (int i = 0; i < contraptions.size(); i++) {
-            if (contraptions.get(i).uuid().equals(selectedUuid)) {
-                selectedContraptionIndex = i;
-                return;
-            }
+        int index = indexOfContraption(selectedUuid);
+        if (index >= 0) {
+            selectedContraptionIndex = index;
         }
     }
 
@@ -465,6 +496,7 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
             if (refreshOnOpen) {
                 showLoading();
             } else {
+                notifyReselectionFailed();
                 showNoSelection();
             }
             return;
@@ -474,6 +506,9 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
         // initiallySelectedId already falls back to the remembered one when the server
         // didn't name a specific contraption.
         UUID initialUuid = firstPresent(selectedUuid, initiallySelectedId);
+        if (initialUuid == null && initiallySelectedId != null) {
+            notifyReselectionFailed();
+        }
         selectContraption(initialUuid != null ? initialUuid : contraptions.getFirst().uuid());
     }
 
@@ -1115,6 +1150,9 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
                         return;
                     }
 
+                    initialReselectionPending = false;
+                    button.active = false;
+                    button.setMessage(Component.translatable("sablefinder.ui.button.deleting"));
                     PacketDistributor.sendToServer(new DeleteContraptionPacket(data.uuid()));
                     resetAndRefreshContraptions();
                 }
@@ -1351,17 +1389,11 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
             return -1;
         }
 
-        for (int i = 0; i < contraptions.size(); i++) {
-            if (contraptions.get(i).uuid().equals(uuid)) {
-                return i;
-            }
-        }
-
-        return -1;
+        return contraptionIndices.getOrDefault(uuid, -1);
     }
 
     private boolean containsContraption(UUID uuid) {
-        return contraptions.stream().anyMatch(entry -> entry.uuid().equals(uuid));
+        return contraptionIndices.containsKey(uuid);
     }
 
     private @Nullable UUID firstPresent(UUID @NotNull ... candidates) {
@@ -1372,6 +1404,20 @@ public class SableFinderScreen extends BaseOwoScreen<FlowLayout> {
         }
 
         return null;
+    }
+
+    private void notifyReselectionFailed() {
+        if (!initialReselectionPending) {
+            return;
+        }
+
+        initialReselectionPending = false;
+        SystemToast.addOrUpdate(
+                Minecraft.getInstance().getToasts(),
+                RESELECTION_TOAST_ID,
+                Component.translatable("sablefinder.message.reselection_failed.title"),
+                Component.translatable("sablefinder.message.reselection_failed.body")
+        );
     }
 
     private static @NotNull Component sortByName(@NotNull SortBy method) {
